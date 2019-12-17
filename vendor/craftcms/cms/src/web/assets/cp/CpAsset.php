@@ -18,6 +18,7 @@ use craft\i18n\Locale;
 use craft\models\Section;
 use craft\services\Sites;
 use craft\web\AssetBundle;
+use craft\web\assets\axios\AxiosAsset;
 use craft\web\assets\d3\D3Asset;
 use craft\web\assets\datepickeri18n\DatepickerI18nAsset;
 use craft\web\assets\elementresizedetector\ElementResizeDetectorAsset;
@@ -50,6 +51,7 @@ class CpAsset extends AssetBundle
         $this->sourcePath = __DIR__ . '/dist';
 
         $this->depends = [
+            AxiosAsset::class,
             D3Asset::class,
             ElementResizeDetectorAsset::class,
             GarnishAsset::class,
@@ -129,6 +131,7 @@ JS;
             'Delete folder',
             'Delete heading',
             'Delete it',
+            'Delete them',
             'Delete user',
             'Delete users',
             'Delete',
@@ -144,6 +147,7 @@ JS;
             'Enter the name of the folder',
             'Enter your password to continue.',
             'Enter your password to log back in.',
+            'Export Type',
             'Export',
             'Export…',
             'Failed',
@@ -159,6 +163,7 @@ JS;
             'Instructions',
             'Keep both',
             'Keep me logged in',
+            'Keep them',
             'License transferred.',
             'Limit',
             'Log out now',
@@ -251,12 +256,16 @@ JS;
             'actionTrigger' => $generalConfig->actionTrigger,
             'actionUrl' => UrlHelper::actionUrl(),
             'allowUppercaseInSlug' => (bool)$generalConfig->allowUppercaseInSlug,
+            'apiParams' => Craft::$app->apiParams,
             'asciiCharMap' => StringHelper::asciiCharMap(true, Craft::$app->language),
+            'baseApiUrl' => Craft::$app->baseApiUrl,
             'baseCpUrl' => UrlHelper::cpUrl(),
             'baseSiteUrl' => UrlHelper::siteUrl(),
             'baseUrl' => UrlHelper::url(),
+            'cpTrigger' => $generalConfig->cpTrigger,
             'datepickerOptions' => $this->_datepickerOptions($locale, $currentUser, $generalConfig),
             'defaultIndexCriteria' => ['enabledForSite' => null],
+            'deltaNames' => Craft::$app->getView()->getDeltaNames(),
             'editableCategoryGroups' => $upToDate ? $this->_editableCategoryGroups() : [],
             'edition' => Craft::$app->getEdition(),
             'fileKinds' => Assets::getFileKinds(),
@@ -266,6 +275,7 @@ JS;
             'left' => $orientation === 'ltr' ? 'left' : 'right',
             'limitAutoSlugsToAscii' => (bool)$generalConfig->limitAutoSlugsToAscii,
             'maxUploadSize' => Assets::getMaxUploadSize(),
+            'modifiedDeltaNames' => $request->getBodyParam('modifiedDeltaNames', []),
             'omitScriptNameInUrls' => (bool)$generalConfig->omitScriptNameInUrls,
             'orientation' => $orientation,
             'pageNum' => $request->getPageNum(),
