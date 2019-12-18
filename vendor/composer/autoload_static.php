@@ -4,7 +4,7 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInit95d2eb270cf3a060955b64841db8009e
+class ComposerStaticInitb561724c474aa29d64a6cdd6802e7766
 {
     public static $files = array (
         '0e6d7bf4a5811bfa5cf40c5ccd6fae6a' => __DIR__ . '/..' . '/symfony/polyfill-mbstring/bootstrap.php',
@@ -18,8 +18,8 @@ class ComposerStaticInit95d2eb270cf3a060955b64841db8009e
         '2c102faa651ef8ea5874edb585946bce' => __DIR__ . '/..' . '/swiftmailer/swiftmailer/lib/swift_required.php',
         'b46ad4fe52f4d1899a2951c7e6ea56b0' => __DIR__ . '/..' . '/voku/portable-utf8/bootstrap.php',
         '7b11c4dc42b3b3023073cb14e519683c' => __DIR__ . '/..' . '/ralouphie/getallheaders/src/getallheaders.php',
-        'c964ee0ededf28c96ebd9db5099ef910' => __DIR__ . '/..' . '/guzzlehttp/promises/src/functions_include.php',
         'a0edc8309cc5e1d60e3047b5df6b7052' => __DIR__ . '/..' . '/guzzlehttp/psr7/src/functions_include.php',
+        'c964ee0ededf28c96ebd9db5099ef910' => __DIR__ . '/..' . '/guzzlehttp/promises/src/functions_include.php',
         '37a3dc5111fe8f707ab4c132ef1dbc62' => __DIR__ . '/..' . '/guzzlehttp/guzzle/src/functions_include.php',
         '667aeda72477189d0494fecd327c3641' => __DIR__ . '/..' . '/symfony/var-dumper/Resources/functions/dump.php',
         '538ca81a9a966a6716601ecf48f4eaef' => __DIR__ . '/..' . '/opis/closure/functions.php',
@@ -153,7 +153,6 @@ class ComposerStaticInit95d2eb270cf3a060955b64841db8009e
         'I' => 
         array (
             'Intervention\\Httpauth\\' => 22,
-            'Interop\\Container\\' => 18,
             'Imagine\\' => 8,
         ),
         'G' => 
@@ -477,10 +476,6 @@ class ComposerStaticInit95d2eb270cf3a060955b64841db8009e
         array (
             0 => __DIR__ . '/..' . '/intervention/httpauth/src/Intervention/Httpauth',
         ),
-        'Interop\\Container\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/container-interop/container-interop/src/Interop/Container',
-        ),
         'Imagine\\' => 
         array (
             0 => __DIR__ . '/..' . '/pixelandtonic/imagine/src',
@@ -548,7 +543,6 @@ class ComposerStaticInit95d2eb270cf3a060955b64841db8009e
             'Props\\' => 
             array (
                 0 => __DIR__ . '/..' . '/mrclay/props-dic/src',
-                1 => __DIR__ . '/..' . '/mrclay/props-dic/test',
             ),
             'Pimple' => 
             array (
@@ -1478,9 +1472,6 @@ class ComposerStaticInit95d2eb270cf3a060955b64841db8009e
         'Imagine\\Imagick\\Layers' => __DIR__ . '/..' . '/pixelandtonic/imagine/src/Imagick/Layers.php',
         'Imagine\\Utils\\ErrorHandling' => __DIR__ . '/..' . '/pixelandtonic/imagine/src/Utils/ErrorHandling.php',
         'Imagine\\Utils\\Matrix' => __DIR__ . '/..' . '/pixelandtonic/imagine/src/Utils/Matrix.php',
-        'Interop\\Container\\ContainerInterface' => __DIR__ . '/..' . '/container-interop/container-interop/src/Interop/Container/ContainerInterface.php',
-        'Interop\\Container\\Exception\\ContainerException' => __DIR__ . '/..' . '/container-interop/container-interop/src/Interop/Container/Exception/ContainerException.php',
-        'Interop\\Container\\Exception\\NotFoundException' => __DIR__ . '/..' . '/container-interop/container-interop/src/Interop/Container/Exception/NotFoundException.php',
         'Intervention\\Httpauth\\BasicUser' => __DIR__ . '/..' . '/intervention/httpauth/src/Intervention/Httpauth/BasicUser.php',
         'Intervention\\Httpauth\\DigestUser' => __DIR__ . '/..' . '/intervention/httpauth/src/Intervention/Httpauth/DigestUser.php',
         'Intervention\\Httpauth\\Facades\\Httpauth' => __DIR__ . '/..' . '/intervention/httpauth/src/Intervention/Httpauth/Facades/Httpauth.php',
@@ -2048,16 +2039,9 @@ class ComposerStaticInit95d2eb270cf3a060955b64841db8009e
         'Pimple\\Tests\\ServiceIteratorTest' => __DIR__ . '/..' . '/pimple/pimple/src/Pimple/Tests/ServiceIteratorTest.php',
         'Props\\BadMethodCallException' => __DIR__ . '/..' . '/mrclay/props-dic/src/Props/BadMethodCallException.php',
         'Props\\Container' => __DIR__ . '/..' . '/mrclay/props-dic/src/Props/Container.php',
-        'Props\\ContainerTest' => __DIR__ . '/..' . '/mrclay/props-dic/test/Props/ContainerTest.php',
-        'Props\\ContainerTestObject' => __DIR__ . '/..' . '/mrclay/props-dic/test/Props/ContainerTest.php',
         'Props\\FactoryUncallableException' => __DIR__ . '/..' . '/mrclay/props-dic/src/Props/FactoryUncallableException.php',
         'Props\\NotFoundException' => __DIR__ . '/..' . '/mrclay/props-dic/src/Props/NotFoundException.php',
         'Props\\Pimple' => __DIR__ . '/..' . '/mrclay/props-dic/src/Props/Pimple.php',
-        'Props\\Pimple\\Tests\\AccessCheck' => __DIR__ . '/..' . '/mrclay/props-dic/test/Props/Pimple/Tests/PimpleTest.php',
-        'Props\\Pimple\\Tests\\Invokable' => __DIR__ . '/..' . '/mrclay/props-dic/test/Props/Pimple/Tests/Invokable.php',
-        'Props\\Pimple\\Tests\\NonInvokable' => __DIR__ . '/..' . '/mrclay/props-dic/test/Props/Pimple/Tests/NonInvokable.php',
-        'Props\\Pimple\\Tests\\PimpleTest' => __DIR__ . '/..' . '/mrclay/props-dic/test/Props/Pimple/Tests/PimpleTest.php',
-        'Props\\Pimple\\Tests\\Service' => __DIR__ . '/..' . '/mrclay/props-dic/test/Props/Pimple/Tests/Service.php',
         'Props\\ValueUnresolvableException' => __DIR__ . '/..' . '/mrclay/props-dic/src/Props/ValueUnresolvableException.php',
         'Psr\\Container\\ContainerExceptionInterface' => __DIR__ . '/..' . '/psr/container/src/ContainerExceptionInterface.php',
         'Psr\\Container\\ContainerInterface' => __DIR__ . '/..' . '/psr/container/src/ContainerInterface.php',
@@ -3389,6 +3373,7 @@ class ComposerStaticInit95d2eb270cf3a060955b64841db8009e
         'craft\\gql\\resolvers\\elements\\Tag' => __DIR__ . '/..' . '/craftcms/cms/src/gql/resolvers/elements/Tag.php',
         'craft\\gql\\resolvers\\elements\\User' => __DIR__ . '/..' . '/craftcms/cms/src/gql/resolvers/elements/User.php',
         'craft\\gql\\types\\DateTime' => __DIR__ . '/..' . '/craftcms/cms/src/gql/types/DateTime.php',
+        'craft\\gql\\types\\Number' => __DIR__ . '/..' . '/craftcms/cms/src/gql/types/Number.php',
         'craft\\gql\\types\\Query' => __DIR__ . '/..' . '/craftcms/cms/src/gql/types/Query.php',
         'craft\\gql\\types\\QueryArgument' => __DIR__ . '/..' . '/craftcms/cms/src/gql/types/QueryArgument.php',
         'craft\\gql\\types\\TableRow' => __DIR__ . '/..' . '/craftcms/cms/src/gql/types/TableRow.php',
@@ -4642,10 +4627,10 @@ class ComposerStaticInit95d2eb270cf3a060955b64841db8009e
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInit95d2eb270cf3a060955b64841db8009e::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInit95d2eb270cf3a060955b64841db8009e::$prefixDirsPsr4;
-            $loader->prefixesPsr0 = ComposerStaticInit95d2eb270cf3a060955b64841db8009e::$prefixesPsr0;
-            $loader->classMap = ComposerStaticInit95d2eb270cf3a060955b64841db8009e::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInitb561724c474aa29d64a6cdd6802e7766::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInitb561724c474aa29d64a6cdd6802e7766::$prefixDirsPsr4;
+            $loader->prefixesPsr0 = ComposerStaticInitb561724c474aa29d64a6cdd6802e7766::$prefixesPsr0;
+            $loader->classMap = ComposerStaticInitb561724c474aa29d64a6cdd6802e7766::$classMap;
 
         }, null, ClassLoader::class);
     }

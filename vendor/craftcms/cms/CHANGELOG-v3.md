@@ -1,5 +1,19 @@
 # Release Notes for Craft CMS 3.x
 
+## Unreleased
+
+### Added
+- Added `craft\gql\types\Number`.
+
+### Changed
+- Number fields now return the `Number` type when queried via GraphQL, which can be an integer, a float, or null. ([#5344](https://github.com/craftcms/cms/issues/5344))
+- The `loginPath`, `logoutPath`, `setPasswordPath`, and `verifyEmailPath` config settings are now ignored when Craft is running in headless mode. ([#5352](https://github.com/craftcms/cms/issues/5352))
+
+### Fixed
+- Fixed a bug where Lightswitch column values within Table fields weren’t returning boolean values when queried via GraphQL. ([#5344](https://github.com/craftcms/cms/issues/5344))
+- Fixed a bug where asset preview modals weren’t getting sized correctly from Edit Asset pages.
+- Fixed a bug where the control panel could have horizontal scrollbars. ([#5347](https://github.com/craftcms/cms/issues/5347))
+
 ## 3.4.0-beta.4 - 2019-12-17
 
 ### Added
@@ -272,6 +286,15 @@
 ### Fixed
 - Fixed a SQL error that could occur if the `info` table has more than one row. ([#5222](https://github.com/craftcms/cms/issues/5222))
 - Fixed a layout issue where the control panel footer would be hidden if the Debug Toolbar was shown. ([#4591](https://github.com/craftcms/cms/issues/4591))
+
+## 3.3.18.3 - 2019-12-17
+
+### Changed
+- Slug fields’ translation icon tooltips now clarify that their values are translated for each site. ([#2064](https://github.com/craftcms/cms/issues/2064))
+
+### Fixed
+- Fixed a PHP error that could occur when `craft\services\Elements::getElementById()` was called with an element whose class didn’t exist. ([#5345](https://github.com/craftcms/cms/issues/5345))
+- Fixed a PHP error that could occur when autoloading the `ContentBehavior` class in some environments.
 
 ## 3.3.18.2 - 2019-12-15
 

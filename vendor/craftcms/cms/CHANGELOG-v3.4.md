@@ -113,6 +113,7 @@
 - Added `craft\events\TemplateEvent::$templateMode`.
 - Added `craft\fields\Assets::$showUnpermittedVolumes`.
 - Added `craft\gql\TypeManager`.
+- Added `craft\gql\types\Number`.
 - Added `craft\helpers\AdminTable`.
 - Added `craft\helpers\ArrayHelper::append()`.
 - Added `craft\helpers\ArrayHelper::prepend()`.
@@ -191,6 +192,7 @@
 - Local asset volumes now ensure that their folder exists on save, and if it doesn’t, a `.gitignore` file will be added automatically to it, excluding the directory from Git. ([#5237](https://github.com/craftcms/cms/issues/5237))
 - Set Password and Verify Email links now use the `setPasswordPath` and `verifyEmailPath` config settings. ([#4925](https://github.com/craftcms/cms/issues/4925))
 - Craft now uses the `slugWordSeparator` when generating URI formats. ([#5315](https://github.com/craftcms/cms/pull/5315))
+- The `loginPath`, `logoutPath`, `setPasswordPath`, and `verifyEmailPath` config settings are now ignored when Craft is running in headless mode. ([#5352](https://github.com/craftcms/cms/issues/5352))
 - CSS registered with `craft\web\View::registerCss()` or the `{% css %}` tag is now minified by default. ([#5183](https://github.com/craftcms/cms/issues/5183))
 - JavaScript code registered with `craft\web\registerJs()` or the `{% js %}` tag is now minified per the `useCompressedJs` config setting. ([#5183](https://github.com/craftcms/cms/issues/5183))
 - `resave/*` commands now have an `--update-search-index` argument (defaults to `false`). ([#4840](https://github.com/craftcms/cms/issues/4840))
@@ -202,6 +204,7 @@
 - The `_layouts/cp.html` template now supports `mainAttributes` and `mainFormAttributes` variables.
 - Plugins can now modify the GraphQL schema via `craft\gql\TypeManager::EVENT_DEFINE_GQL_TYPE_FIELDS`.
 - Plugins can now modify the GraphQL permissions via `craft\services\Gql::EVENT_REGISTER_GQL_PERMISSIONS`.
+- Number fields now return the `Number` type when queried via GraphQL, which can be an integer, a float, or null. ([#5344](https://github.com/craftcms/cms/issues/5344))
 - Renamed the`QueryParameter` GraphQL type to `QueryArgument`.
 - If any elements are selected while exporting, only the selected elements will be included in the export. ([#5130](https://github.com/craftcms/cms/issues/5130))
 - Craft now sorts the `project.yaml` file alphabetically by keys. ([#5147](https://github.com/craftcms/cms/issues/5147))
@@ -246,3 +249,4 @@
 - Fixed a bug where the image editor would not immediately apply new aspect ratio selections when cropping images.
 - Fixed a bug where the `maxBackups` config setting wasn’t getting applied if a custom `backupCommand` was set.
 - Fixed a bug where it was impossible to use aliases for matrix fields when using GraphQL. ([#5008](https://github.com/craftcms/cms/issues/5008))
+- Fixed a bug where Lightswitch column values within Table fields weren’t returning boolean values when queried via GraphQL. ([#5344](https://github.com/craftcms/cms/issues/5344))
