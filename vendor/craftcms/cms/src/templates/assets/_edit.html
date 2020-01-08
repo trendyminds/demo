@@ -1,12 +1,14 @@
 {% extends "_layouts/element" %}
 {% import "_includes/forms" as forms %}
 
-{% set canUpdateSource = true %}
+{% set canUpdateSource = canEdit %}
 {% set saveSourceAction = 'assets/save-asset' %}
 
 {% block actionButton %}
     <div id="download-btn" class="btn" role="button" data-icon="download">{{ 'Download'|t('app') }}</div>
-    <div id="replace-btn" class="btn" role="button" data-icon="upload">{{ 'Replace file'|t('app') }}</div>
+    {% if canReplaceFile %}
+        <div id="replace-btn" class="btn" role="button" data-icon="upload">{{ 'Replace file'|t('app') }}</div>
+    {% endif %}
 
     {{ parent() }}
 {% endblock %}
@@ -21,10 +23,11 @@
         id: 'title',
         name: 'title',
         value: element.title,
-        errors: element.getErrors('title'),
+        errors: canEdit and element.getErrors('title'),
         first: true,
         autofocus: true,
-        required: true,
+        required: canEdit,
+        disabled: not canEdit,
         maxlength: 255
     }) }}
 

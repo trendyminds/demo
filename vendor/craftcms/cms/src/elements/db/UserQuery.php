@@ -84,7 +84,7 @@ class UserQuery extends ElementQuery
      *     ->all();
      * ```
      * ```twig
-     * {# fetch users with CP access #}
+     * {# fetch users with control panel access #}
      * {% set admins = craft.users()
      *     .can('accessCp')
      *     .all() %}
@@ -208,14 +208,14 @@ class UserQuery extends ElementQuery
      * ---
      *
      * ```twig
-     * {# Fetch users that can access the Control Panel #}
+     * {# Fetch users that can access the control panel #}
      * {% set {elements-var} = {twig-method}
      *     .can('accessCp')
      *     .all() %}
      * ```
      *
      * ```php
-     * // Fetch users that can access the Control Panel
+     * // Fetch users that can access the control panel
      * ${elements-var} = {element-class}::find()
      *     ->can('accessCp')
      *     ->all();

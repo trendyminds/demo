@@ -2,12 +2,59 @@
 
 ## Unreleased
 
-### Added
-- Added `craft\gql\types\Number`.
+### Added
+- Added the Queue Manager utility. ([#2753](https://github.com/craftcms/cms/issues/2753), [#3489](https://github.com/craftcms/cms/issues/3489))
+- Added the `queue/release` action. ([#4777](https://github.com/craftcms/cms/issues/4777))
+- Added `craft\base\Model::defineRules()`. Models that define a `rules()` method should use `defineRules()` instead, so `EVENT_DEFINE_RULES` event handlers have a chance to modify them.
+- Added `craft\base\UtilityInterface::footerHtml()`.
+- Added `craft\base\UtilityInterface::toolbarHtml()`.
+- Added `craft\queue\Command::actionRelease()`.
+- Added `craft\queue\QueueInterface::getJobDetails()`.
+- Added `craft\queue\QueueInterface::getTotalJobs()`.
+- Added `craft\queue\QueueInterface::releaseAll()`.
+- Added `craft\queue\QueueInterface::retryAll()`.
+- Added `craft\utilities\QueueManager`.
+- Added `craft\web\assets\queuemanager\QueueManagerAsset`.
 
 ### Changed
+- The queue info in the global sidebar no longer shows an HUD with job details when clicked; the user is now brought to the new Queue Manager utility, if they have permission to view it. ([#4040](https://github.com/craftcms/cms/issues/4040))
+- Element index pages once again link to elements’ edit pages even if `getIsEditable()` returns `false`.
+- “Edit” Asset pages now have a read-only mode for assets that the user is allowed to view but not modify.
+
+### Fixed
+- Fixed a bug where the control panel UI could come to a grinding halt if a large number of jobs were in the queue. ([#4533](https://github.com/craftcms/cms/issues/4533))
+
+### Fixed
+- Fixed an error that occurred when updating from Craft 3.0. ([#5391](https://github.com/craftcms/cms/issues/5391))
+- Fixed an error that occurred when updating from Craft 2. ([#5402](https://github.com/craftcms/cms/issues/5402))
+
+## 3.4.0-beta.5 - 2020-01-02
+
+### Added
+- Added new “View files uploaded by other users”, “Edit files uploaded by other users”, “Replace files uploaded by other users”, “Remove files uploaded by other users”, and “Edit images uploaded by other users” user permissions.
+- Assets fields now have a “Show unpermitted files setting, which determines whether the field should show files that the user doesn’t have permission to view per the new “View files uploaded by other users” permission.
+- It’s now possible to filter element query results by their related elements using relational fields’ element query params (e.g. `publisher(100)` rather than `relatedTo({targetElement: 100, field: 'publisher'})`). ([#5200](https://github.com/craftcms/cms/issues/5200))
+- It’s now possible to filter users by user groups when querying for them using GraphQL. ([#5374](https://github.com/craftcms/cms/issues/5374)) 
+- Added the `asset`, `category`, `entry`, `globalSet`, `tag`, and `user` queries to fetch a single element using the GraphQL API. ([#5363](https://github.com/craftcms/cms/issues/5363))
+- Added `craft\controllers\UsersController::actionSessionInfo()`. ([#5355](https://github.com/craftcms/cms/issues/5355))
+- Added `craft\gql\types\Number`.
+- Added the `Craft.ui.createDateRangePicker()` JavaScript method.
+
+### Changed
+- Edit Asset pages now have a site selection menu on multi-site installs.
+- The `users/login` action no longer sets a “Logged in.” flash notice. ([#5383](https://github.com/craftcms/cms/issues/5383))
 - Number fields now return the `Number` type when queried via GraphQL, which can be an integer, a float, or null. ([#5344](https://github.com/craftcms/cms/issues/5344))
-- The `loginPath`, `logoutPath`, `setPasswordPath`, and `verifyEmailPath` config settings are now ignored when Craft is running in headless mode. ([#5352](https://github.com/craftcms/cms/issues/5352))
+- The `loginPath` and `logoutPath` config settings can now be set to `false` to disable front-end login/logout. ([#5352](https://github.com/craftcms/cms/issues/5352))
+- The `loginPath`, `logoutPath`, `setPasswordPath`, and `verifyEmailPath` config settings are now ignored when Craft is running in headless mode.
+- The `__count` field when querying Elements using GraphQL has been renamed to `_count`.
+- Element index pages no longer link to elements’ edit pages if `getIsEditable()` returns `false`.
+- Entry queries no longer factor in seconds when looking for currently live entries. ([#5389](https://github.com/craftcms/cms/issues/5389))
+- `craft\config\GeneralConfig::getLoginPath()` and `getLogoutPath()` may now return non-string values.
+- `craft\helpers\Db::prepDateForDb()` now has a `$stripSeconds` argument (defaults to `false`).
+- Updated Garnish to 0.1.32.
+
+### Deprecated
+- Deprecated `craft\controllers\UsersController::actionGetRemainingSessionTime()`. `actionSessionInfo()` should be used instead.
 
 ### Fixed
 - Fixed a bug where Lightswitch column values within Table fields weren’t returning boolean values when queried via GraphQL. ([#5344](https://github.com/craftcms/cms/issues/5344))
@@ -286,6 +333,34 @@
 ### Fixed
 - Fixed a SQL error that could occur if the `info` table has more than one row. ([#5222](https://github.com/craftcms/cms/issues/5222))
 - Fixed a layout issue where the control panel footer would be hidden if the Debug Toolbar was shown. ([#4591](https://github.com/craftcms/cms/issues/4591))
+
+## Unreleased (3.3)
+
+### Fixed
+- Fixed a bug where entry revision menus could list sites that the entry didn’t support. ([#5387](https://github.com/craftcms/cms/issues/5387))
+- Fixed a PHP warning that occurred when creating a new database backup. ([#5393](https://github.com/craftcms/cms/issues/5393))
+
+### Security
+- Fixed an XSS vulnerability.
+
+## 3.3.19 - 2019-12-30
+
+### Changed
+- Improved the performance of `craft\helpers\StringHelper::containsMb4()`. ([#5366](https://github.com/craftcms/cms/issues/5366))
+- Updated Yii to 2.0.31.
+
+### Security
+- Fixed an information exposure vulnerability.
+
+## 3.3.18.4 - 2019-12-21
+
+### Fixed
+- Fixed a bug where “Updating search indexes” jobs would show inaccurate progress bars. ([#5358](https://github.com/craftcms/cms/pull/5358))
+- Fixed a PHP error that could occur when using the `|attr` filter on an HTML element that had an existing attribute with an empty value. ([#5364](https://github.com/craftcms/cms/issues/5364))
+- Fixed a race condition that could result in a PHP error when generating `ElementQueryBehavior.php`. ([#5361](https://github.com/craftcms/cms/issues/5361))
+
+### Security
+- Fixed a bug where Craft was renewing the identity cookie each time it checked on the user’s remaining session time. ([#3951](https://github.com/craftcms/cms/issues/3951))
 
 ## 3.3.18.3 - 2019-12-17
 

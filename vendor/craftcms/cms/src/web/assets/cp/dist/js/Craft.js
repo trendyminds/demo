@@ -1,4 +1,4 @@
-/*!   - 2019-12-17 */
+/*!   - 2020-01-07 */
 (function($){
 
 /** global: Craft */
@@ -379,7 +379,7 @@ $.extend(Craft,
                     if (typeof Craft.cp !== 'undefined') {
                         Craft.cp.displayError();
                     } else {
-                        alert(Craft.t('app', 'An unknown error occurred.'));
+                        alert(Craft.t('app', 'A server error occurred.'));
                     }
 
                     if (callback) {
@@ -2259,7 +2259,7 @@ Craft.BaseElementIndex = Garnish.Base.extend(
                     this.initSources();
                     this.selectDefaultSource();
                 } else {
-                    Craft.cp.displayError(Craft.t('app', 'An unknown error occurred.'));
+                    Craft.cp.displayError(Craft.t('app', 'A server error occurred.'));
                 }
 
             }, this));
@@ -2514,7 +2514,7 @@ Craft.BaseElementIndex = Garnish.Base.extend(
 
                     this._updateView(params, response);
                 } else {
-                    Craft.cp.displayError(Craft.t('app', 'An unknown error occurred.'));
+                    Craft.cp.displayError(Craft.t('app', 'A server error occurred.'));
                 }
 
             }, this));
@@ -3696,7 +3696,7 @@ Craft.BaseElementIndex = Garnish.Base.extend(
                         var url = Craft.getCpUrl('', params);
                         document.location.href = url;
                     } else {
-                        Craft.cp.displayError(Craft.t('app', 'An unknown error occurred.'));
+                        Craft.cp.displayError(Craft.t('app', 'A server error occurred.'));
                     }
 
                 }, this));
@@ -8035,7 +8035,7 @@ Craft.AssetIndex = Craft.BaseElementIndex.extend(
                 helperOpacity: 0.75,
 
                 filter: $.proxy(function() {
-                    return this.view.getSelectedElements();
+                    return this.view.getSelectedElements().has('div.element[data-movable]');
                 }, this),
 
                 helper: $.proxy(function($file) {
@@ -8043,15 +8043,22 @@ Craft.AssetIndex = Craft.BaseElementIndex.extend(
                 }, this),
 
                 dropTargets: $.proxy(function() {
+                    // Which "can-move-to" attribute should we be checking
+                    var attr;
+                    if (this._assetDrag.$draggee && this._assetDrag.$draggee.has('.element[data-peer-file]').length) {
+                        attr = 'can-move-peer-files-to';
+                    } else {
+                        attr = 'can-move-to';
+                    }
+
                     var targets = [];
 
                     for (var i = 0; i < this.$sources.length; i++) {
                         // Make sure it's a volume folder
                         var $source = this.$sources.eq(i);
-                        if (!this._getFolderUidFromSourceKey($source.data('key'))) {
-                            continue;
+                        if ($source.data(attr)) {
+                            targets.push($source);
                         }
-                        targets.push($source);
                     }
 
                     return targets;
@@ -8642,7 +8649,7 @@ Craft.AssetIndex = Craft.BaseElementIndex.extend(
             var $source = this._getSourceByKey(this.sourceKey);
             var folderId = $source.data('folder-id');
 
-            if (folderId && this.$source.attr('data-upload')) {
+            if (folderId && this.$source.attr('data-can-upload')) {
                 this.uploader.setParams({
                     folderId: this.$source.attr('data-folder-id')
                 });
@@ -8912,7 +8919,7 @@ Craft.AssetIndex = Craft.BaseElementIndex.extend(
                     this._assetDrag.removeAllItems();
                 }
 
-                this._assetDrag.addItems($newElements);
+                this._assetDrag.addItems($newElements.has('div.element[data-movable]'));
             }
 
             // See if we have freshly uploaded files to add to selection
@@ -9163,8 +9170,10 @@ Craft.AssetIndex = Craft.BaseElementIndex.extend(
                             '<li>' +
                             '<a data-key="' + $parentFolder.data('key') + '/folder:' + data.folderUid + '"' +
                             (Garnish.hasAttr($parentFolder, 'data-has-thumbs') ? ' data-has-thumbs' : '') +
-                            ' data-upload="' + $parentFolder.attr('data-upload') + '"' +
                             ' data-folder-id="' + data.folderId + '"' +
+                            ' data-can-upload="' + $parentFolder.attr('data-can-upload') + '"' +
+                            ' data-can-move-to="' + $parentFolder.attr('data-can-move-to') + '"' +
+                            ' data-can-move-peer-files-to="' + $parentFolder.attr('data-can-move-peer-files-to') + '"' +
                             '>' +
                             data.folderName +
                             '</a>' +
@@ -9920,7 +9929,7 @@ Craft.AuthManager = Garnish.Base.extend(
          */
         checkRemainingSessionTime: function(extendSession) {
             $.ajax({
-                url: Craft.getActionUrl('users/get-remaining-session-time', (extendSession ? null : 'dontExtendSession=1')),
+                url: Craft.getActionUrl('users/session-info', (extendSession ? null : 'dontExtendSession=1')),
                 type: 'GET',
                 dataType: 'json',
                 complete: $.proxy(function(jqXHR, textStatus) {
@@ -9946,7 +9955,7 @@ Craft.AuthManager = Garnish.Base.extend(
             this.remainingSessionTime = parseInt(remainingSessionTime);
 
             // Are we within the warning window?
-            if (this.remainingSessionTime !== -1 && this.remainingSessionTime < Craft.AuthManager.minSafeSessiotTime) {
+            if (this.remainingSessionTime !== -1 && this.remainingSessionTime < Craft.AuthManager.minSafeSessionTime) {
                 // Is there still time to renew the session?
                 if (this.remainingSessionTime) {
                     if (!this.showingLogoutWarningModal) {
@@ -9982,9 +9991,9 @@ Craft.AuthManager = Garnish.Base.extend(
                 this.hideLogoutWarningModal();
                 this.hideLoginModal();
 
-                // Will be be within the minSafeSessiotTime before the next update?
-                if (this.remainingSessionTime !== -1 && this.remainingSessionTime < (Craft.AuthManager.minSafeSessiotTime + Craft.AuthManager.checkInterval)) {
-                    this.setCheckRemainingSessionTimer(this.remainingSessionTime - Craft.AuthManager.minSafeSessiotTime + 1);
+                // Will be be within the minSafeSessionTime before the next update?
+                if (this.remainingSessionTime !== -1 && this.remainingSessionTime < (Craft.AuthManager.minSafeSessionTime + Craft.AuthManager.checkInterval)) {
+                    this.setCheckRemainingSessionTimer(this.remainingSessionTime - Craft.AuthManager.minSafeSessionTime + 1);
                 }
                 else {
                     this.setCheckRemainingSessionTimer(Craft.AuthManager.checkInterval);
@@ -10257,7 +10266,7 @@ Craft.AuthManager = Garnish.Base.extend(
 
         showLoginError: function(error) {
             if (error === null || typeof error === 'undefined') {
-                error = Craft.t('app', 'An unknown error occurred.');
+                error = Craft.t('app', 'A server error occurred.');
             }
 
             this.$loginErrorPara.text(error);
@@ -10270,7 +10279,7 @@ Craft.AuthManager = Garnish.Base.extend(
     },
     {
         checkInterval: 60,
-        minSafeSessiotTime: 120
+        minSafeSessionTime: 120
     });
 
 /** global: Craft */
@@ -11473,6 +11482,7 @@ Craft.CP = Garnish.Base.extend(
         fixedHeader: false,
 
         enableQueue: true,
+        totalJobs: 0,
         jobInfo: null,
         displayedJobInfo: null,
         displayedJobInfoUnchanged: 1,
@@ -11960,7 +11970,7 @@ Craft.CP = Garnish.Base.extend(
          */
         displayError: function(message) {
             if (!message) {
-                message = Craft.t('app', 'An unknown error occurred.');
+                message = Craft.t('app', 'A server error occurred.');
             }
 
             this.displayNotification('error', message);
@@ -12205,10 +12215,11 @@ Craft.CP = Garnish.Base.extend(
         },
 
         _trackJobProgressInternal: function() {
-            Craft.queueActionRequest('queue/get-job-info?dontExtendSession=1', $.proxy(function(response, textStatus) {
+            Craft.queueActionRequest('queue/get-job-info?limit=50&dontExtendSession=1', $.proxy(function(response, textStatus) {
                 if (textStatus === 'success') {
                     this.trackJobProgressTimeout = null;
-                    this.setJobInfo(response, true);
+                    this.totalJobs = response.total;
+                    this.setJobInfo(response.jobs, true);
 
                     if (this.jobInfo.length) {
                         // Check again after a delay
@@ -12325,7 +12336,6 @@ var JobProgressIcon = Garnish.Base.extend(
         $a: null,
         $label: null,
 
-        hud: null,
         failMode: false,
 
         _canvasSupported: null,
@@ -12354,7 +12364,10 @@ var JobProgressIcon = Garnish.Base.extend(
 
         init: function() {
             this.$li = $('<li/>').appendTo(Craft.cp.$nav.children('ul'));
-            this.$a = $('<a id="job-icon"/>').appendTo(this.$li);
+            this.$a = $('<a/>', {
+                id: 'job-icon',
+                href: Craft.canAccessQueueManager ? Craft.getUrl('utilities/queue-manager') : null,
+            }).appendTo(this.$li);
             this.$canvasContainer = $('<span class="icon"/>').appendTo(this.$a);
             this.$label = $('<span class="label"></span>').appendTo(this.$a);
 
@@ -12382,8 +12395,6 @@ var JobProgressIcon = Garnish.Base.extend(
                 this._progressBar = new Craft.ProgressBar(this.$canvasContainer);
                 this._progressBar.showProgressBar();
             }
-
-            this.addListener(this.$a, 'click', 'toggleHud');
         },
 
         setDescription: function(description) {
@@ -12393,11 +12404,18 @@ var JobProgressIcon = Garnish.Base.extend(
 
         setProgress: function(progress, animate) {
             if (this._canvasSupported) {
-                if (animate) {
-                    this._animateArc(0, progress / 100);
-                }
-                else {
-                    this._setArc(0, progress / 100);
+                if (progress == 0) {
+                    this._$staticCanvas.hide();
+                    this._$hoverCanvas.hide();
+                } else {
+                    this._$staticCanvas.show();
+                    this._$hoverCanvas.show();
+                    if (animate) {
+                        this._animateArc(0, progress / 100);
+                    }
+                    else {
+                        this._setArc(0, progress / 100);
+                    }
                 }
             }
             else {
@@ -12464,15 +12482,6 @@ var JobProgressIcon = Garnish.Base.extend(
             }
         },
 
-        toggleHud: function() {
-            if (!this.hud) {
-                this.hud = new QueueHUD();
-            }
-            else {
-                this.hud.toggle();
-            }
-        },
-
         _createCanvas: function(id, color) {
             var $canvas = $('<canvas id="job-icon-' + id + '" width="' + this._canvasSize + '" height="' + this._canvasSize + '"/>').appendTo(this.$canvasContainer),
                 ctx = $canvas[0].getContext('2d');
@@ -12522,234 +12531,6 @@ var JobProgressIcon = Garnish.Base.extend(
             else if (this._arcAnimateCallback) {
                 this._arcAnimateCallback();
             }
-        }
-    });
-
-var QueueHUD = Garnish.HUD.extend(
-    {
-        jobsById: null,
-        completedJobs: null,
-        updateViewProxy: null,
-
-        init: function() {
-            this.jobsById = {};
-            this.completedJobs = [];
-            this.updateViewProxy = $.proxy(this, 'updateView');
-
-            this.base(Craft.cp.jobProgressIcon.$a);
-
-            this.$main.attr('id', 'queue-hud');
-        },
-
-        onShow: function() {
-            Craft.cp.on('setJobInfo', this.updateViewProxy);
-            this.updateView();
-            this.base();
-        },
-
-        onHide: function() {
-            Craft.cp.off('setJobInfo', this.updateViewProxy);
-
-            // Clear out any completed jobs
-            if (this.completedJobs.length) {
-                for (var i = 0; i < this.completedJobs.length; i++) {
-                    this.completedJobs[i].destroy();
-                }
-
-                this.completedJobs = [];
-            }
-
-            this.base();
-        },
-
-        updateView: function() {
-            // First remove any jobs that have completed
-            var newJobIds = [];
-
-            var i;
-
-            if (Craft.cp.jobInfo) {
-                for (i = 0; i < Craft.cp.jobInfo.length; i++) {
-                    newJobIds.push(parseInt(Craft.cp.jobInfo[i].id));
-                }
-            }
-
-            for (var id in this.jobsById) {
-                if (!this.jobsById.hasOwnProperty(id)) {
-                    continue;
-                }
-                if (!Craft.inArray(parseInt(id), newJobIds)) {
-                    this.jobsById[id].complete();
-                    this.completedJobs.push(this.jobsById[id]);
-                    delete this.jobsById[id];
-                }
-            }
-
-            // Now display the jobs that are still around
-            if (Craft.cp.jobInfo && Craft.cp.jobInfo.length) {
-                for (i = 0; i < Craft.cp.jobInfo.length; i++) {
-                    var info = Craft.cp.jobInfo[i];
-
-                    if (this.jobsById[info.id]) {
-                        this.jobsById[info.id].updateStatus(info);
-                    }
-                    else {
-                        this.jobsById[info.id] = new QueueHUD.Job(this, info);
-
-                        // Place it before the next already known job
-                        var placed = false;
-                        for (var j = i + 1; j < Craft.cp.jobInfo.length; j++) {
-                            if (this.jobsById[Craft.cp.jobInfo[j].id]) {
-                                this.jobsById[info.id].$container.insertBefore(this.jobsById[Craft.cp.jobInfo[j].id].$container);
-                                placed = true;
-                                break;
-                            }
-                        }
-
-                        if (!placed) {
-                            // Place it before the resize <object> if there is one
-                            var $object = this.$main.children('object');
-                            if ($object.length) {
-                                this.jobsById[info.id].$container.insertBefore($object);
-                            }
-                            else {
-                                this.jobsById[info.id].$container.appendTo(this.$main);
-                            }
-                        }
-                    }
-                }
-            }
-            else {
-                this.hide();
-            }
-        }
-    });
-
-QueueHUD.Job = Garnish.Base.extend(
-    {
-        hud: null,
-        id: null,
-        description: null,
-
-        status: null,
-        progress: null,
-
-        $container: null,
-        $statusContainer: null,
-        $descriptionContainer: null,
-        $progressLabel: null,
-
-        _progressBar: null,
-
-        init: function(hud, info) {
-            this.hud = hud;
-
-            this.id = info.id;
-            this.description = info.description;
-
-            this.$container = $('<div/>', { 'class': 'job' });
-            var $flex = $('<div/>', { 'class': 'flex' }).appendTo(this.$container);
-            $('<div/>', { 'class': 'flex-grow' }).text(info.description).appendTo($flex);
-            this.$statusContainer = $('<div class="job-status"/>').appendTo($flex);
-
-            this.$container.data('job', this);
-
-            this.updateStatus(info);
-        },
-
-        updateStatus: function(info) {
-            if (this.status !== (this.status = info.status)) {
-                this.$statusContainer.empty();
-
-                switch (this.status) {
-                    case Craft.CP.JOB_STATUS_WAITING: {
-                        this.$statusContainer.text(Craft.t('app', 'Pending'));
-                        break;
-                    }
-                    case Craft.CP.JOB_STATUS_RESERVED: {
-                        this._progressBar = new Craft.ProgressBar(this.$statusContainer);
-                        this._progressBar.showProgressBar();
-                        break;
-                    }
-                    case Craft.CP.JOB_STATUS_FAILED: {
-                        $('<span/>', {
-                            'class': 'error',
-                            text: Craft.t('app', 'Failed'),
-                            title: info.error
-                        }).appendTo(this.$statusContainer);
-
-                        var $actionBtn = $('<a class="menubtn error" title="' + Craft.t('app', 'Options') + '"/>').appendTo(this.$statusContainer);
-                        $(
-                            '<div class="menu">' +
-                            '<ul>' +
-                            '<li><a data-action="retry">' + Craft.t('app', 'Try again') + '</a></li>' +
-                            '<li><a data-action="release">' + Craft.t('app', 'Cancel') + '</a></li>' +
-                            '</ul>' +
-                            '</div>'
-                        ).appendTo(this.$statusContainer);
-
-                        new Garnish.MenuBtn($actionBtn, {
-                            onOptionSelect: $.proxy(this, 'performErrorAction')
-                        });
-
-                        break;
-                    }
-                }
-            }
-
-            if (this.status === Craft.CP.JOB_STATUS_RESERVED) {
-                this._progressBar.setProgressPercentage(info.progress);
-
-                if (info.progressLabel) {
-                    if (!this.$progressLabel) {
-                        this.$progressLabel = $('<div class="light smalltext"/>').appendTo(this.$container);
-                    }
-                    this.$progressLabel.text(info.progressLabel);
-                }
-            } else if (this.$progressLabel) {
-                this.$progressLabel.remove();
-                this.$progressLabel = null;
-            }
-        },
-
-        performErrorAction: function(option) {
-            // What option did they choose?
-            switch ($(option).data('action')) {
-                case 'retry': {
-                    // Update the icon
-                    Craft.cp.displayedJobInfo.status = Craft.CP.JOB_STATUS_WAITING;
-                    Craft.cp.displayedJobInfo.progress = 0;
-                    Craft.cp.updateJobIcon(false);
-
-                    Craft.postActionRequest('queue/retry', {id: this.id}, $.proxy(function(response, textStatus) {
-                        if (textStatus === 'success') {
-                            Craft.cp.trackJobProgress(false, true);
-                        }
-                    }, this));
-                    break;
-                }
-                case 'release': {
-                    Craft.postActionRequest('queue/release', {id: this.id}, $.proxy(function(response, textStatus) {
-                        if (textStatus === 'success') {
-                            Craft.cp.trackJobProgress(false, true);
-                        }
-                    }, this));
-                }
-            }
-        },
-
-        complete: function() {
-            this.$statusContainer.empty();
-            $('<div data-icon="check"/>').appendTo(this.$statusContainer);
-        },
-
-        destroy: function() {
-            if (this.hud.jobsById[this.id]) {
-                delete this.hud.jobsById[this.id];
-            }
-
-            this.$container.remove();
-            this.base();
         }
     });
 
@@ -12962,7 +12743,7 @@ Craft.CustomizeSourcesModal = Garnish.Modal.extend(
                     this.hide();
                 }
                 else {
-                    var error = (textStatus === 'success' && response.error ? response.error : Craft.t('app', 'An unknown error occurred.'));
+                    var error = (textStatus === 'success' && response.error ? response.error : Craft.t('app', 'A server error occurred.'));
                     Craft.cp.displayError(error);
                 }
             }, this));
@@ -15268,7 +15049,7 @@ Craft.ElevatedSessionManager = Garnish.Base.extend(
 
         showPasswordError: function(error) {
             if (error === null || typeof error === 'undefined') {
-                error = Craft.t('app', 'An unknown error occurred.');
+                error = Craft.t('app', 'A server error occurred.');
             }
 
             this.$errorPara.text(error);
@@ -19838,7 +19619,7 @@ Craft.StructureTableSorter = Garnish.DragSort.extend({
                 Craft.postActionRequest('structures/move-element', data, $.proxy(function(response, textStatus) {
                     if (textStatus === 'success') {
                         if (!response.success) {
-                            Craft.cp.displayError(Craft.t('app', 'An unknown error occurred.'));
+                            Craft.cp.displayError(Craft.t('app', 'A server error occurred.'));
                             this.tableView.elementIndex.updateElements();
                             return;
                         }
@@ -20742,7 +20523,7 @@ Craft.TagSelectInput = Craft.BaseElementSelectInput.extend(
 
                         if (textStatus === 'success') {
                             // Some sort of validation error that still resulted in  a 200 response. Shouldn't be possible though.
-                            Craft.cp.displayError(Craft.t('app', 'An unknown error occurred.'));
+                            Craft.cp.displayError(Craft.t('app', 'A server error occurred.'));
                         }
                     }
                 }, this));
@@ -21192,6 +20973,193 @@ Craft.ui =
 
         createDateField: function(config) {
             return this.createField(this.createDateInput(config), config);
+        },
+
+        createDateRangePicker: function(config) {
+            var now = new Date();
+            var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            config = $.extend({
+                options: [
+                    'today',
+                    'thisWeek',
+                    'thisMonth',
+                    'thisYear',
+                    'past7Days',
+                    'past30Days',
+                    'pastYear',
+                ],
+                onChange: $.noop,
+            }, config);
+
+            var $menu = $('<div/>', {'class': 'menu'});
+            var $ul = $('<ul/>', {'class': 'padded'}).appendTo($menu);
+            var menu = new Garnish.Menu($menu);
+
+            $('<li/>')
+                .append($('<a/>', {
+                    'class': 'sel',
+                    text: Craft.t('app', 'All'),
+                }))
+                .appendTo($ul);
+
+            var option;
+            for (var i = 0; i < config.options.length; i++) {
+                option = config.options[i];
+                switch (option) {
+                    case 'today':
+                        option = {
+                            label: Craft.t('app', 'Today'),
+                            startDate: today,
+                            endDate: today,
+                        };
+                        break;
+                    case 'thisWeek':
+                        var firstDayOffset = now.getDay() - Craft.datepickerOptions.firstDay;
+                        if (firstDayOffset < 0) {
+                            firstDayOffset += 7;
+                        }
+                        option = {
+                            label: Craft.t('app', 'This week'),
+                            startDate: new Date(now.getFullYear(), now.getMonth(), now.getDate() - firstDayOffset),
+                            endDate: today,
+                        };
+                        break;
+                    case 'thisMonth':
+                        option = {
+                            label: Craft.t('app', 'This month'),
+                            startDate: new Date(now.getFullYear(), now.getMonth()),
+                            endDate: today,
+                        };
+                        break;
+                    case 'thisYear':
+                        option = {
+                            label: Craft.t('app', 'This year'),
+                            startDate: new Date(now.getFullYear(), 0),
+                            endDate: today,
+                        };
+                        break;
+                    case 'past7Days':
+                        option = {
+                            label: Craft.t('app', 'Past {num} days', {num: 7}),
+                            startDate: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7),
+                            endDate: today,
+                        };
+                        break;
+                    case 'past30Days':
+                        option = {
+                            label: Craft.t('app', 'Past {num} days', {num: 30}),
+                            startDate: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30),
+                            endDate: today,
+                        };
+                        break;
+                    case 'pastYear':
+                        option = {
+                            label: Craft.t('app', 'Past year'),
+                            startDate: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 365),
+                            endDate: today,
+                        };
+                        break;
+                }
+
+                $('<li/>')
+                    .append($('<a/>', {text: option.label})
+                        .data('startDate', option.startDate)
+                        .data('endDate', option.endDate)
+                        .data('startTime', option.startDate ? option.startDate.getTime() : null)
+                        .data('endTime', option.endDate ? option.endDate.getTime() : null))
+                    .appendTo($ul);
+            }
+
+            $('<hr/>').appendTo($menu);
+
+            var $flex = $('<div/>', {'class': 'flex flex-nowrap padded'}).appendTo($menu);
+            var $startDate = this.createDateField({label: Craft.t('app', 'From')}).appendTo($flex).find('input');
+            var $endDate = this.createDateField({label: Craft.t('app', 'To')}).appendTo($flex).find('input');
+
+            // prevent ESC keypresses in the date inputs from closing the menu
+            var $dateInputs = $startDate.add($endDate);
+            $dateInputs.on('keyup', function(ev) {
+                if (ev.keyCode === Garnish.ESC_KEY && $(this).data('datepicker').dpDiv.is(':visible')) {
+                    ev.stopPropagation();
+                }
+            })
+
+            // prevent clicks in the datepicker divs from closing the menu
+            $startDate.data('datepicker').dpDiv.on('mousedown', function(ev) {
+                ev.stopPropagation();
+            });
+            $endDate.data('datepicker').dpDiv.on('mousedown', function(ev) {
+                ev.stopPropagation();
+            });
+
+            var menu = new Garnish.Menu($menu, {
+                onOptionSelect: function(option) {
+                    var $option = $(option);
+                    $btn.text($option.text());
+                    menu.setPositionRelativeToAnchor();
+                    $menu.find('.sel').removeClass('sel');
+                    $option.addClass('sel');
+
+                    // Update the start/end dates
+                    $startDate.datepicker('setDate', $option.data('startDate'));
+                    $endDate.datepicker('setDate', $option.data('endDate'));
+
+                    config.onChange($option.data('startDate') || null, $option.data('endDate') || null);
+                }
+            });
+
+            $dateInputs.on('change', function() {
+                // Do the start & end dates match one of our options?
+                var startDate = $startDate.datepicker('getDate');
+                var endDate = $endDate.datepicker('getDate');
+                var startTime = startDate ? startDate.getTime() : null;
+                var endTime = endDate ? endDate.getTime() : null;
+
+                var $options = $ul.find('a');
+                var $option;
+                var foundOption = false;
+
+                for (var i = 0; i < $options.length; i++) {
+                    $option = $options.eq(i);
+                    if (
+                        startTime === ($option.data('startTime') || null) &&
+                        endTime === ($option.data('endTime') || null)
+                    ) {
+                        menu.selectOption($option[0]);
+                        foundOption = true;
+                        break;
+                    }
+                }
+
+                if (!foundOption) {
+                    $menu.find('.sel').removeClass('sel');
+                    $flex.addClass('sel');
+
+                    if (!startTime && !endTime) {
+                        $btn.text(Craft.t('app', 'All'));
+                    } else if (startTime && endTime) {
+                        $btn.text($startDate.val() + ' - ' + $endDate.val());
+                    } else if (startTime) {
+                        $btn.text(Craft.t('app', 'From {date}', {date: $startDate.val()}));
+                    } else {
+                        $btn.text(Craft.t('app', 'To {date}', {date: $endDate.val()}));
+                    }
+                    menu.setPositionRelativeToAnchor();
+
+                    config.onChange(startDate, endDate);
+                }
+            });
+
+            menu.on('hide', function() {
+                $startDate.datepicker('hide');
+                $endDate.datepicker('hide');
+            });
+
+            var $btn = $('<div class="btn menubtn" data-icon="date"/>')
+                .text(Craft.t('app', 'All'));
+
+            new Garnish.MenuBtn($btn, menu);
+            return $btn;
         },
 
         createTimeInput: function(config) {

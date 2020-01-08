@@ -575,7 +575,7 @@ interface ElementInterface extends ComponentInterface
     public function getLink();
 
     /**
-     * Returns what the element should be called within the Control Panel.
+     * Returns what the element should be called within the control panel.
      *
      * @return string
      * @since 3.2.0
@@ -597,7 +597,7 @@ interface ElementInterface extends ComponentInterface
     public function getIsEditable(): bool;
 
     /**
-     * Returns the element’s CP edit URL.
+     * Returns the element’s edit URL in the control panel.
      *
      * @return string|null
      */
@@ -1012,7 +1012,7 @@ interface ElementInterface extends ComponentInterface
     // -------------------------------------------------------------------------
 
     /**
-     * Returns any attributes that should be included in the element’s DOM representation in the Control Panel.
+     * Returns any attributes that should be included in the element’s DOM representation in the control panel.
      *
      * ::: tip
      * Element types that extend [[\craft\base\Element]] should override [[\craft\base\Element::htmlAttributes()]]

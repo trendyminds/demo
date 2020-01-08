@@ -4,7 +4,7 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInitb561724c474aa29d64a6cdd6802e7766
+class ComposerStaticInit99eb61e0cbfcb7ebccbd1f705e2e1e28
 {
     public static $files = array (
         '0e6d7bf4a5811bfa5cf40c5ccd6fae6a' => __DIR__ . '/..' . '/symfony/polyfill-mbstring/bootstrap.php',
@@ -13,13 +13,13 @@ class ComposerStaticInitb561724c474aa29d64a6cdd6802e7766
         'def43f6c87e4f8dfd0c9e1b1bab14fe8' => __DIR__ . '/..' . '/symfony/polyfill-iconv/bootstrap.php',
         '320cde22f66dd4f5d3fd621d3e88b98f' => __DIR__ . '/..' . '/symfony/polyfill-ctype/bootstrap.php',
         'f598d06aa772fa33d905e87be6398fb1' => __DIR__ . '/..' . '/symfony/polyfill-intl-idn/bootstrap.php',
-        'e69f7f6ee287b969198c3c9d6777bd38' => __DIR__ . '/..' . '/symfony/polyfill-intl-normalizer/bootstrap.php',
         '8825ede83f2f289127722d4e842cf7e8' => __DIR__ . '/..' . '/symfony/polyfill-intl-grapheme/bootstrap.php',
+        'e69f7f6ee287b969198c3c9d6777bd38' => __DIR__ . '/..' . '/symfony/polyfill-intl-normalizer/bootstrap.php',
         '2c102faa651ef8ea5874edb585946bce' => __DIR__ . '/..' . '/swiftmailer/swiftmailer/lib/swift_required.php',
         'b46ad4fe52f4d1899a2951c7e6ea56b0' => __DIR__ . '/..' . '/voku/portable-utf8/bootstrap.php',
         '7b11c4dc42b3b3023073cb14e519683c' => __DIR__ . '/..' . '/ralouphie/getallheaders/src/getallheaders.php',
-        'a0edc8309cc5e1d60e3047b5df6b7052' => __DIR__ . '/..' . '/guzzlehttp/psr7/src/functions_include.php',
         'c964ee0ededf28c96ebd9db5099ef910' => __DIR__ . '/..' . '/guzzlehttp/promises/src/functions_include.php',
+        'a0edc8309cc5e1d60e3047b5df6b7052' => __DIR__ . '/..' . '/guzzlehttp/psr7/src/functions_include.php',
         '37a3dc5111fe8f707ab4c132ef1dbc62' => __DIR__ . '/..' . '/guzzlehttp/guzzle/src/functions_include.php',
         '667aeda72477189d0494fecd327c3641' => __DIR__ . '/..' . '/symfony/var-dumper/Resources/functions/dump.php',
         '538ca81a9a966a6716601ecf48f4eaef' => __DIR__ . '/..' . '/opis/closure/functions.php',
@@ -256,15 +256,15 @@ class ComposerStaticInitb561724c474aa29d64a6cdd6802e7766
         ),
         'voku\\helper\\' => 
         array (
-            0 => __DIR__ . '/..' . '/voku/urlify/src/voku/helper',
+            0 => __DIR__ . '/..' . '/voku/anti-xss/src/voku/helper',
             1 => __DIR__ . '/..' . '/voku/email-check/src/voku/helper',
-            2 => __DIR__ . '/..' . '/voku/anti-xss/src/voku/helper',
+            2 => __DIR__ . '/..' . '/voku/urlify/src/voku/helper',
         ),
         'voku\\' => 
         array (
-            0 => __DIR__ . '/..' . '/voku/stop-words/src/voku',
-            1 => __DIR__ . '/..' . '/voku/portable-ascii/src/voku',
-            2 => __DIR__ . '/..' . '/voku/portable-utf8/src/voku',
+            0 => __DIR__ . '/..' . '/voku/portable-ascii/src/voku',
+            1 => __DIR__ . '/..' . '/voku/portable-utf8/src/voku',
+            2 => __DIR__ . '/..' . '/voku/stop-words/src/voku',
         ),
         'tubalmartin\\CssMin\\' => 
         array (
@@ -273,8 +273,8 @@ class ComposerStaticInitb561724c474aa29d64a6cdd6802e7766
         'phpDocumentor\\Reflection\\' => 
         array (
             0 => __DIR__ . '/..' . '/phpdocumentor/reflection-common/src',
-            1 => __DIR__ . '/..' . '/phpdocumentor/type-resolver/src',
-            2 => __DIR__ . '/..' . '/phpdocumentor/reflection-docblock/src',
+            1 => __DIR__ . '/..' . '/phpdocumentor/reflection-docblock/src',
+            2 => __DIR__ . '/..' . '/phpdocumentor/type-resolver/src',
         ),
         'modules\\' => 
         array (
@@ -1547,15 +1547,19 @@ class ComposerStaticInitb561724c474aa29d64a6cdd6802e7766
         'League\\Flysystem\\Adapter\\SynologyFtp' => __DIR__ . '/..' . '/league/flysystem/src/Adapter/SynologyFtp.php',
         'League\\Flysystem\\Config' => __DIR__ . '/..' . '/league/flysystem/src/Config.php',
         'League\\Flysystem\\ConfigAwareTrait' => __DIR__ . '/..' . '/league/flysystem/src/ConfigAwareTrait.php',
+        'League\\Flysystem\\ConnectionErrorException' => __DIR__ . '/..' . '/league/flysystem/src/ConnectionErrorException.php',
+        'League\\Flysystem\\ConnectionRuntimeException' => __DIR__ . '/..' . '/league/flysystem/src/ConnectionRuntimeException.php',
         'League\\Flysystem\\Directory' => __DIR__ . '/..' . '/league/flysystem/src/Directory.php',
         'League\\Flysystem\\Exception' => __DIR__ . '/..' . '/league/flysystem/src/Exception.php',
         'League\\Flysystem\\File' => __DIR__ . '/..' . '/league/flysystem/src/File.php',
         'League\\Flysystem\\FileExistsException' => __DIR__ . '/..' . '/league/flysystem/src/FileExistsException.php',
         'League\\Flysystem\\FileNotFoundException' => __DIR__ . '/..' . '/league/flysystem/src/FileNotFoundException.php',
         'League\\Flysystem\\Filesystem' => __DIR__ . '/..' . '/league/flysystem/src/Filesystem.php',
+        'League\\Flysystem\\FilesystemException' => __DIR__ . '/..' . '/league/flysystem/src/FilesystemException.php',
         'League\\Flysystem\\FilesystemInterface' => __DIR__ . '/..' . '/league/flysystem/src/FilesystemInterface.php',
         'League\\Flysystem\\FilesystemNotFoundException' => __DIR__ . '/..' . '/league/flysystem/src/FilesystemNotFoundException.php',
         'League\\Flysystem\\Handler' => __DIR__ . '/..' . '/league/flysystem/src/Handler.php',
+        'League\\Flysystem\\InvalidRootException' => __DIR__ . '/..' . '/league/flysystem/src/InvalidRootException.php',
         'League\\Flysystem\\MountManager' => __DIR__ . '/..' . '/league/flysystem/src/MountManager.php',
         'League\\Flysystem\\NotSupportedException' => __DIR__ . '/..' . '/league/flysystem/src/NotSupportedException.php',
         'League\\Flysystem\\PluginInterface' => __DIR__ . '/..' . '/league/flysystem/src/PluginInterface.php',
@@ -3605,6 +3609,7 @@ class ComposerStaticInitb561724c474aa29d64a6cdd6802e7766
         'craft\\migrations\\m191204_085100_pack_savable_component_settings' => __DIR__ . '/..' . '/craftcms/cms/src/migrations/m191204_085100_pack_savable_component_settings.php',
         'craft\\migrations\\m191206_001148_change_tracking' => __DIR__ . '/..' . '/craftcms/cms/src/migrations/m191206_001148_change_tracking.php',
         'craft\\migrations\\m191216_191635_asset_upload_tracking' => __DIR__ . '/..' . '/craftcms/cms/src/migrations/m191216_191635_asset_upload_tracking.php',
+        'craft\\migrations\\m191222_002848_peer_asset_permissions' => __DIR__ . '/..' . '/craftcms/cms/src/migrations/m191222_002848_peer_asset_permissions.php',
         'craft\\models\\AssetIndexData' => __DIR__ . '/..' . '/craftcms/cms/src/models/AssetIndexData.php',
         'craft\\models\\AssetTransform' => __DIR__ . '/..' . '/craftcms/cms/src/models/AssetTransform.php',
         'craft\\models\\AssetTransformIndex' => __DIR__ . '/..' . '/craftcms/cms/src/models/AssetTransformIndex.php',
@@ -3798,6 +3803,7 @@ class ComposerStaticInitb561724c474aa29d64a6cdd6802e7766
         'craft\\utilities\\FindAndReplace' => __DIR__ . '/..' . '/craftcms/cms/src/utilities/FindAndReplace.php',
         'craft\\utilities\\Migrations' => __DIR__ . '/..' . '/craftcms/cms/src/utilities/Migrations.php',
         'craft\\utilities\\PhpInfo' => __DIR__ . '/..' . '/craftcms/cms/src/utilities/PhpInfo.php',
+        'craft\\utilities\\QueueManager' => __DIR__ . '/..' . '/craftcms/cms/src/utilities/QueueManager.php',
         'craft\\utilities\\SystemMessages' => __DIR__ . '/..' . '/craftcms/cms/src/utilities/SystemMessages.php',
         'craft\\utilities\\SystemReport' => __DIR__ . '/..' . '/craftcms/cms/src/utilities/SystemReport.php',
         'craft\\utilities\\Updates' => __DIR__ . '/..' . '/craftcms/cms/src/utilities/Updates.php',
@@ -3876,6 +3882,7 @@ class ComposerStaticInitb561724c474aa29d64a6cdd6802e7766
         'craft\\web\\assets\\pluginstoreoauth\\PluginStoreOauthAsset' => __DIR__ . '/..' . '/craftcms/cms/src/web/assets/pluginstoreoauth/PluginStoreOauthAsset.php',
         'craft\\web\\assets\\positionselect\\PositionSelectAsset' => __DIR__ . '/..' . '/craftcms/cms/src/web/assets/positionselect/PositionSelectAsset.php',
         'craft\\web\\assets\\prismjs\\PrismJsAsset' => __DIR__ . '/..' . '/craftcms/cms/src/web/assets/prismjs/PrismJsAsset.php',
+        'craft\\web\\assets\\queuemanager\\QueueManagerAsset' => __DIR__ . '/..' . '/craftcms/cms/src/web/assets/queuemanager/QueueManagerAsset.php',
         'craft\\web\\assets\\quickpost\\QuickPostAsset' => __DIR__ . '/..' . '/craftcms/cms/src/web/assets/quickpost/QuickPostAsset.php',
         'craft\\web\\assets\\qunit\\QunitAsset' => __DIR__ . '/..' . '/craftcms/cms/src/web/assets/qunit/QunitAsset.php',
         'craft\\web\\assets\\recententries\\RecentEntriesAsset' => __DIR__ . '/..' . '/craftcms/cms/src/web/assets/recententries/RecentEntriesAsset.php',
@@ -4035,6 +4042,7 @@ class ComposerStaticInitb561724c474aa29d64a6cdd6802e7766
         'phpDocumentor\\Reflection\\DocBlock\\Tags\\See' => __DIR__ . '/..' . '/phpdocumentor/reflection-docblock/src/DocBlock/Tags/See.php',
         'phpDocumentor\\Reflection\\DocBlock\\Tags\\Since' => __DIR__ . '/..' . '/phpdocumentor/reflection-docblock/src/DocBlock/Tags/Since.php',
         'phpDocumentor\\Reflection\\DocBlock\\Tags\\Source' => __DIR__ . '/..' . '/phpdocumentor/reflection-docblock/src/DocBlock/Tags/Source.php',
+        'phpDocumentor\\Reflection\\DocBlock\\Tags\\TagWithType' => __DIR__ . '/..' . '/phpdocumentor/reflection-docblock/src/DocBlock/Tags/TagWithType.php',
         'phpDocumentor\\Reflection\\DocBlock\\Tags\\Throws' => __DIR__ . '/..' . '/phpdocumentor/reflection-docblock/src/DocBlock/Tags/Throws.php',
         'phpDocumentor\\Reflection\\DocBlock\\Tags\\Uses' => __DIR__ . '/..' . '/phpdocumentor/reflection-docblock/src/DocBlock/Tags/Uses.php',
         'phpDocumentor\\Reflection\\DocBlock\\Tags\\Var_' => __DIR__ . '/..' . '/phpdocumentor/reflection-docblock/src/DocBlock/Tags/Var_.php',
@@ -4627,10 +4635,10 @@ class ComposerStaticInitb561724c474aa29d64a6cdd6802e7766
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInitb561724c474aa29d64a6cdd6802e7766::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInitb561724c474aa29d64a6cdd6802e7766::$prefixDirsPsr4;
-            $loader->prefixesPsr0 = ComposerStaticInitb561724c474aa29d64a6cdd6802e7766::$prefixesPsr0;
-            $loader->classMap = ComposerStaticInitb561724c474aa29d64a6cdd6802e7766::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInit99eb61e0cbfcb7ebccbd1f705e2e1e28::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInit99eb61e0cbfcb7ebccbd1f705e2e1e28::$prefixDirsPsr4;
+            $loader->prefixesPsr0 = ComposerStaticInit99eb61e0cbfcb7ebccbd1f705e2e1e28::$prefixesPsr0;
+            $loader->classMap = ComposerStaticInit99eb61e0cbfcb7ebccbd1f705e2e1e28::$classMap;
 
         }, null, ClassLoader::class);
     }

@@ -1,5 +1,23 @@
 # Changelog
 
+### 1.4.6 (2019-12-23)
+
+- optimize "ASCII::to_ascii()" performance
+- add "armenian" chars
+- add "ASCII:getAllLanguages()"
+
+### 1.4.5 (2019-12-19)
+
+- use "@psalm-pure" v2
+
+### 1.4.4 (2019-12-19)
+
+- use "@psalm-pure"
+
+### 1.4.3 (2019-12-19)
+
+- use "@psalm-immutable"
+
 ### 1.4.2 (2019-12-13)
 
 - optimize the performance v2
