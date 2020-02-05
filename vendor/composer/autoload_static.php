@@ -4,7 +4,7 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInit99eb61e0cbfcb7ebccbd1f705e2e1e28
+class ComposerStaticInit0cac029b2ef52c76b0e90df3d5577c69
 {
     public static $files = array (
         '0e6d7bf4a5811bfa5cf40c5ccd6fae6a' => __DIR__ . '/..' . '/symfony/polyfill-mbstring/bootstrap.php',
@@ -13,14 +13,14 @@ class ComposerStaticInit99eb61e0cbfcb7ebccbd1f705e2e1e28
         '2cffec82183ee1cea088009cef9a6fc3' => __DIR__ . '/..' . '/ezyang/htmlpurifier/library/HTMLPurifier.composer.php',
         'def43f6c87e4f8dfd0c9e1b1bab14fe8' => __DIR__ . '/..' . '/symfony/polyfill-iconv/bootstrap.php',
         '320cde22f66dd4f5d3fd621d3e88b98f' => __DIR__ . '/..' . '/symfony/polyfill-ctype/bootstrap.php',
-        '8825ede83f2f289127722d4e842cf7e8' => __DIR__ . '/..' . '/symfony/polyfill-intl-grapheme/bootstrap.php',
         'e69f7f6ee287b969198c3c9d6777bd38' => __DIR__ . '/..' . '/symfony/polyfill-intl-normalizer/bootstrap.php',
+        '8825ede83f2f289127722d4e842cf7e8' => __DIR__ . '/..' . '/symfony/polyfill-intl-grapheme/bootstrap.php',
         '2c102faa651ef8ea5874edb585946bce' => __DIR__ . '/..' . '/swiftmailer/swiftmailer/lib/swift_required.php',
         'b46ad4fe52f4d1899a2951c7e6ea56b0' => __DIR__ . '/..' . '/voku/portable-utf8/bootstrap.php',
         '7e9bd612cc444b3eed788ebbe46263a0' => __DIR__ . '/..' . '/laminas/laminas-zendframework-bridge/src/autoload.php',
         '7b11c4dc42b3b3023073cb14e519683c' => __DIR__ . '/..' . '/ralouphie/getallheaders/src/getallheaders.php',
-        'c964ee0ededf28c96ebd9db5099ef910' => __DIR__ . '/..' . '/guzzlehttp/promises/src/functions_include.php',
         'a0edc8309cc5e1d60e3047b5df6b7052' => __DIR__ . '/..' . '/guzzlehttp/psr7/src/functions_include.php',
+        'c964ee0ededf28c96ebd9db5099ef910' => __DIR__ . '/..' . '/guzzlehttp/promises/src/functions_include.php',
         '37a3dc5111fe8f707ab4c132ef1dbc62' => __DIR__ . '/..' . '/guzzlehttp/guzzle/src/functions_include.php',
         '667aeda72477189d0494fecd327c3641' => __DIR__ . '/..' . '/symfony/var-dumper/Resources/functions/dump.php',
         '538ca81a9a966a6716601ecf48f4eaef' => __DIR__ . '/..' . '/opis/closure/functions.php',
@@ -259,15 +259,15 @@ class ComposerStaticInit99eb61e0cbfcb7ebccbd1f705e2e1e28
         ),
         'voku\\helper\\' => 
         array (
-            0 => __DIR__ . '/..' . '/voku/anti-xss/src/voku/helper',
+            0 => __DIR__ . '/..' . '/voku/urlify/src/voku/helper',
             1 => __DIR__ . '/..' . '/voku/email-check/src/voku/helper',
-            2 => __DIR__ . '/..' . '/voku/urlify/src/voku/helper',
+            2 => __DIR__ . '/..' . '/voku/anti-xss/src/voku/helper',
         ),
         'voku\\' => 
         array (
-            0 => __DIR__ . '/..' . '/voku/portable-ascii/src/voku',
-            1 => __DIR__ . '/..' . '/voku/portable-utf8/src/voku',
-            2 => __DIR__ . '/..' . '/voku/stop-words/src/voku',
+            0 => __DIR__ . '/..' . '/voku/stop-words/src/voku',
+            1 => __DIR__ . '/..' . '/voku/portable-ascii/src/voku',
+            2 => __DIR__ . '/..' . '/voku/portable-utf8/src/voku',
         ),
         'tubalmartin\\CssMin\\' => 
         array (
@@ -276,8 +276,8 @@ class ComposerStaticInit99eb61e0cbfcb7ebccbd1f705e2e1e28
         'phpDocumentor\\Reflection\\' => 
         array (
             0 => __DIR__ . '/..' . '/phpdocumentor/reflection-common/src',
-            1 => __DIR__ . '/..' . '/phpdocumentor/reflection-docblock/src',
-            2 => __DIR__ . '/..' . '/phpdocumentor/type-resolver/src',
+            1 => __DIR__ . '/..' . '/phpdocumentor/type-resolver/src',
+            2 => __DIR__ . '/..' . '/phpdocumentor/reflection-docblock/src',
         ),
         'modules\\' => 
         array (
@@ -4614,10 +4614,10 @@ class ComposerStaticInit99eb61e0cbfcb7ebccbd1f705e2e1e28
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInit99eb61e0cbfcb7ebccbd1f705e2e1e28::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInit99eb61e0cbfcb7ebccbd1f705e2e1e28::$prefixDirsPsr4;
-            $loader->prefixesPsr0 = ComposerStaticInit99eb61e0cbfcb7ebccbd1f705e2e1e28::$prefixesPsr0;
-            $loader->classMap = ComposerStaticInit99eb61e0cbfcb7ebccbd1f705e2e1e28::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInit0cac029b2ef52c76b0e90df3d5577c69::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInit0cac029b2ef52c76b0e90df3d5577c69::$prefixDirsPsr4;
+            $loader->prefixesPsr0 = ComposerStaticInit0cac029b2ef52c76b0e90df3d5577c69::$prefixesPsr0;
+            $loader->classMap = ComposerStaticInit0cac029b2ef52c76b0e90df3d5577c69::$classMap;
 
         }, null, ClassLoader::class);
     }

@@ -325,17 +325,17 @@
     },
     {
         "name": "craftcms/cms",
-        "version": "3.4.3",
-        "version_normalized": "3.4.3.0",
+        "version": "3.4.4",
+        "version_normalized": "3.4.4.0",
         "source": {
             "type": "git",
             "url": "https://github.com/craftcms/cms.git",
-            "reference": "8436bfe373e81a2cc9d551feb4f9bad8d0fbdefb"
+            "reference": "9cf6b233afb68fb4988f21f8a55d4420b3dbb16b"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/craftcms/cms/zipball/8436bfe373e81a2cc9d551feb4f9bad8d0fbdefb",
-            "reference": "8436bfe373e81a2cc9d551feb4f9bad8d0fbdefb",
+            "url": "https://api.github.com/repos/craftcms/cms/zipball/9cf6b233afb68fb4988f21f8a55d4420b3dbb16b",
+            "reference": "9cf6b233afb68fb4988f21f8a55d4420b3dbb16b",
             "shasum": ""
         },
         "require": {
@@ -401,9 +401,9 @@
             "ext-imagick": "Adds support for more image processing formats and options.",
             "ext-intl": "Adds rich internationalization support."
         },
-        "time": "2020-02-04T00:47:42+00:00",
+        "time": "2020-02-05T21:42:11+00:00",
         "type": "library",
-        "installation-source": "source",
+        "installation-source": "dist",
         "autoload": {
             "psr-4": {
                 "craft\\": "src/",
@@ -543,7 +543,7 @@
             "handle": "redactor",
             "documentationUrl": "https://github.com/craftcms/redactor/blob/v2/README.md"
         },
-        "installation-source": "source",
+        "installation-source": "dist",
         "autoload": {
             "psr-4": {
                 "craft\\redactor\\": "src/"
@@ -1576,17 +1576,17 @@
     },
     {
         "name": "league/flysystem",
-        "version": "1.0.63",
-        "version_normalized": "1.0.63.0",
+        "version": "1.0.64",
+        "version_normalized": "1.0.64.0",
         "source": {
             "type": "git",
             "url": "https://github.com/thephpleague/flysystem.git",
-            "reference": "8132daec326565036bc8e8d1876f77ec183a7bd6"
+            "reference": "d13c43dbd4b791f815215959105a008515d1a2e0"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/thephpleague/flysystem/zipball/8132daec326565036bc8e8d1876f77ec183a7bd6",
-            "reference": "8132daec326565036bc8e8d1876f77ec183a7bd6",
+            "url": "https://api.github.com/repos/thephpleague/flysystem/zipball/d13c43dbd4b791f815215959105a008515d1a2e0",
+            "reference": "d13c43dbd4b791f815215959105a008515d1a2e0",
             "shasum": ""
         },
         "require": {
@@ -1598,7 +1598,7 @@
         },
         "require-dev": {
             "phpspec/phpspec": "^3.4",
-            "phpunit/phpunit": "^5.7.10"
+            "phpunit/phpunit": "^5.7.26"
         },
         "suggest": {
             "ext-fileinfo": "Required for MimeType",
@@ -1616,7 +1616,7 @@
             "spatie/flysystem-dropbox": "Allows you to use Dropbox storage",
             "srmklive/flysystem-dropbox-v2": "Allows you to use Dropbox storage for PHP 5 applications"
         },
-        "time": "2020-01-04T16:30:31+00:00",
+        "time": "2020-02-05T18:14:17+00:00",
         "type": "library",
         "extra": {
             "branch-alias": {
