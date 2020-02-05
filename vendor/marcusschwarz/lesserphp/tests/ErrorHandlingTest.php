@@ -1,150 +1,119 @@
 <?php
+require_once __DIR__ . "/../lessc.inc.php";
 
-/**
- * lesserphp
- * https://www.maswaba.de/lesserphp
- *
- * LESS CSS compiler, adapted from http://lesscss.org
- *
- * Copyright 2013, Leaf Corcoran <leafot@gmail.com>
- * Copyright 2016, Marcus Schwarz <github@maswaba.de>
- * Licensed under MIT or GPLv3, see LICENSE
- * @package LesserPhp
- */
-class ErrorHandlingTest extends \PHPUnit\Framework\TestCase
-{
+class ErrorHandlingTest extends PHPUnit_Framework_TestCase {
+	public function setUp() {
+		$this->less = new lessc();
+	}
 
-    /**
-     * @var LesserPhp\Compiler
-     */
-    private $less;
+	public function compile() {
+		$source = join("\n", func_get_args());
+		return $this->less->compile($source);
+	}
 
-    public function setUp()
-    {
-        $this->less = new \LesserPhp\Compiler();
-    }
+	/**
+	 * @expectedException        Exception
+	 * @expectedExceptionMessage .parametric-mixin is undefined
+	 */
+	public function testRequiredParametersMissing() {
+		$this->compile(
+			'.parametric-mixin (@a, @b) { a: @a; b: @b; }',
+			'.selector { .parametric-mixin(12px); }'
+		);
+	}
 
-    public function compile()
-    {
-        $source = implode("\n", func_get_args());
+	/**
+	 * @expectedException        Exception
+	 * @expectedExceptionMessage .parametric-mixin is undefined
+	 */
+	public function testTooManyParameters() {
+		$this->compile(
+			'.parametric-mixin (@a, @b) { a: @a; b: @b; }',
+			'.selector { .parametric-mixin(12px, 13px, 14px); }'
+		);
+	}
 
-        return $this->less->compile($source);
-    }
+	/**
+	 * @expectedException        Exception
+	 * @expectedExceptionMessage unrecognised input
+	 */
+	public function testRequiredArgumentsMissing() {
+		$this->compile('.selector { rule: e(); }');
+	}
 
-    /**
-     * @expectedException        Exception
-     * @expectedExceptionMessage .parametric-mixin is undefined
-     */
-    public function testRequiredParametersMissing()
-    {
-        $this->compile(
-            '.parametric-mixin (@a, @b) { a: @a; b: @b; }',
-            '.selector { .parametric-mixin(12px); }'
-        );
-    }
+	/**
+	 * @expectedException        Exception
+	 * @expectedExceptionMessage variable @missing is undefined
+	 */
+	public function testVariableMissing() {
+		$this->compile('.selector { rule: @missing; }');
+	}
 
-    /**
-     * @expectedException        Exception
-     * @expectedExceptionMessage .parametric-mixin is undefined
-     */
-    public function testTooManyParameters()
-    {
-        $this->compile(
-            '.parametric-mixin (@a, @b) { a: @a; b: @b; }',
-            '.selector { .parametric-mixin(12px, 13px, 14px); }'
-        );
-    }
+	/**
+	 * @expectedException        Exception
+	 * @expectedExceptionMessage .missing-mixin is undefined
+	 */
+	public function testMixinMissing() {
+		$this->compile('.selector { .missing-mixin; }');
+	}
 
-    /**
-     * @expectedException        Exception
-     * @expectedExceptionMessage unrecognised input
-     */
-    public function testRequiredArgumentsMissing()
-    {
-        $this->compile('.selector { rule: e(); }');
-    }
+	/**
+	 * @expectedException        Exception
+	 * @expectedExceptionMessage .flipped is undefined
+	 */
+	public function testGuardUnmatchedValue() {
+		$this->compile(
+			'.flipped(@x) when (@x =< 10) { rule: value; }',
+			'.selector { .flipped(12); }'
+		);
+	}
 
-    /**
-     * @expectedException        Exception
-     * @expectedExceptionMessage variable @missing is undefined
-     */
-    public function testVariableMissing()
-    {
-        $this->compile('.selector { rule: @missing; }');
-    }
-
-    /**
-     * @expectedException        Exception
-     * @expectedExceptionMessage .missing-mixin is undefined
-     */
-    public function testMixinMissing()
-    {
-        $this->compile('.selector { .missing-mixin; }');
-    }
+	/**
+	 * @expectedException        Exception
+	 * @expectedExceptionMessage .colors-only is undefined
+	 */
+	public function testGuardUnmatchedType() {
+		$this->compile(
+			'.colors-only(@x) when (iscolor(@x)) { rule: value; }',
+			'.selector { .colors-only("string value"); }'
+		);
+	}
 
     /**
-     * @expectedException        Exception
-     * @expectedExceptionMessage .flipped is undefined
+     * @expectedException		Exception
+     * @expectedExceptionMessage	expecting at least 1 arguments, got 0
      */
-    public function testGuardUnmatchedValue()
-    {
-        $this->compile(
-            '.flipped(@x) when (@x =< 10) { rule: value; }',
-            '.selector { .flipped(12); }'
-        );
-    }
-
-    /**
-     * @expectedException        Exception
-     * @expectedExceptionMessage .colors-only is undefined
-     */
-    public function testGuardUnmatchedType()
-    {
-        $this->compile(
-            '.colors-only(@x) when (iscolor(@x)) { rule: value; }',
-            '.selector { .colors-only("string value"); }'
-        );
-    }
-
-    /**
-     * @expectedException        Exception
-     * @expectedExceptionMessage    expecting at least 1 arguments, got 0
-     */
-    public function testMinNoArguments()
-    {
+    public function testMinNoArguments() {
         $this->compile(
             '.selector{ min: min(); }'
         );
     }
 
     /**
-     * @expectedException        Exception
-     * @expectedExceptionMessage    expecting at least 1 arguments, got 0
+     * @expectedException		Exception
+     * @expectedExceptionMessage	expecting at least 1 arguments, got 0
      */
-    public function testMaxNoArguments()
-    {
+    public function testMaxNoArguments() {
         $this->compile(
             '.selector{ max: max(); }'
         );
     }
 
     /**
-     * @expectedException        Exception
-     * @expectedExceptionMessage    Cannot convert % to px
+     * @expectedException		Exception
+     * @expectedExceptionMessage	Cannot convert % to px
      */
-    public function testMaxIncompatibleTypes()
-    {
+    public function testMaxIncompatibleTypes() {
         $this->compile(
             '.selector{ max: max( 10px, 5% ); }'
         );
     }
 
     /**
-     * @expectedException        Exception
-     * @expectedExceptionMessage    Cannot convert px to s
+     * @expectedException		Exception
+     * @expectedExceptionMessage	Cannot convert px to s
      */
-    public function testConvertIncompatibleTypes()
-    {
+    public function testConvertIncompatibleTypes() {
         $this->compile(
             '.selector{ convert: convert( 10px, s ); }'
         );

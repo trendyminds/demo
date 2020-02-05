@@ -40,9 +40,6 @@ use yii\base\UnknownPropertyException;
  */
 class Volumes extends Component
 {
-    // Constants
-    // =========================================================================
-
     /**
      * @event RegisterComponentTypesEvent The event that is triggered when registering volume types.
      *
@@ -93,9 +90,6 @@ class Volumes extends Component
 
     const CONFIG_VOLUME_KEY = 'volumes';
 
-    // Properties
-    // =========================================================================
-
     /**
      * @var VolumeInterface[]
      */
@@ -105,9 +99,6 @@ class Volumes extends Component
      * @var array|null Volume setting overrides
      */
     private $_overrides;
-
-    // Public Methods
-    // =========================================================================
 
     // Volumes
     // -------------------------------------------------------------------------
@@ -262,7 +253,25 @@ class Volumes extends Component
     }
 
     /**
-     * Saves an asset volume.
+     * Creates or updates a volume.
+     *
+     * ---
+     *
+     * ```php
+     * use craft\volumes\Local;
+     *
+     * $volume = new Local([
+     *     'name' => 'Content Images',
+     *     'handle' => 'contentImages',
+     *     'hasUrls' => true,
+     *     'url' => '$CONTENT_IMAGES_URL',
+     *     'path' => '$CONTENT_IMAGES_PATH',
+     * ]);
+     *
+     * if (!Craft::$app->volumes->saveVolume(($volume))) {
+     *     throw new Exception('Couldn’t save volume.');
+     * }
+     * ```
      *
      * @param VolumeInterface $volume the volume to be saved.
      * @param bool $runValidation Whether the volume should be validated
@@ -308,7 +317,7 @@ class Volumes extends Component
             'type' => \get_class($volume),
             'hasUrls' => (bool)$volume->hasUrls,
             'url' => $volume->url,
-            'settings' => ProjectConfigHelper::packAssociativeArray($volume->getSettings()),
+            'settings' => ProjectConfigHelper::packAssociativeArrays($volume->getSettings()),
             'sortOrder' => (int)$volume->sortOrder,
         ];
 
@@ -363,7 +372,7 @@ class Volumes extends Component
             $volumeRecord->hasUrls = $data['hasUrls'];
             $volumeRecord->sortOrder = $data['sortOrder'];
             $volumeRecord->url = !empty($data['url']) ? $data['url'] : null;
-            $volumeRecord->settings = ProjectConfigHelper::unpackAssociativeArray($data['settings']);
+            $volumeRecord->settings = ProjectConfigHelper::unpackAssociativeArrays($data['settings']);
             $volumeRecord->uid = $volumeUid;
 
             if (!empty($data['fieldLayouts'])) {
@@ -713,9 +722,6 @@ class Volumes extends Component
         // Allow events again
         $projectConfig->muteEvents = false;
     }
-
-    // Private Methods
-    // =========================================================================
 
     /**
      * Returns a DbCommand object prepped for retrieving volumes.

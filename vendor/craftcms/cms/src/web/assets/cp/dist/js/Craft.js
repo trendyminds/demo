@@ -1,4 +1,4 @@
-/*!   - 2020-01-07 */
+/*!   - 2020-01-31 */
 (function($){
 
 /** global: Craft */
@@ -25,16 +25,151 @@ $.extend(Craft,
             }
 
             if (params) {
-                for (var key in params) {
-                    if (!params.hasOwnProperty(key)) {
-                        continue;
-                    }
-
-                    message = message.replace('{' + key + '}', params[key]);
-                }
+                return this.formatMessage(message, params);
             }
 
             return message;
+        },
+
+        formatMessage: function(pattern, args) {
+            let tokens;
+            if ((tokens = this._tokenizePattern(pattern)) === false) {
+                throw 'Message pattern is invalid.';
+            }
+            for (let i = 0; i < tokens.length; i++) {
+                let token = tokens[i];
+                if (typeof token === 'object') {
+                    if ((tokens[i] = this._parseToken(token, args)) === false) {
+                        throw 'Message pattern is invalid.';
+                    }
+                }
+            }
+            return tokens.join('');
+        },
+
+        _tokenizePattern: function(pattern) {
+            let depth = 1, start, pos;
+            // Get an array of the string characters (factoring in 3+ byte chars)
+            const chars = [...pattern];
+            if ((start = pos = chars.indexOf('{')) === -1) {
+                return [pattern];
+            }
+            tokens = [chars.slice(0, pos).join('')];
+            while (true) {
+                let open = chars.indexOf('{', pos + 1);
+                let close = chars.indexOf('}', pos + 1);
+                if (open === -1) {
+                    open = false;
+                }
+                if (close === -1) {
+                    close = false;
+                }
+                if (open === false && close === false) {
+                    break;
+                }
+                if (open === false) {
+                    open = chars.length;
+                }
+                if (close > open) {
+                    depth++;
+                    pos = open;
+                } else {
+                    depth--;
+                    pos = close;
+                }
+                if (depth === 0) {
+                    tokens.push(chars.slice(start + 1, pos).join('').split(',', 3));
+                    start = pos + 1;
+                    tokens.push(chars.slice(start, open).join(''));
+                    start = open;
+                }
+
+                if (depth !== 0 && (open === false || close === false)) {
+                    break;
+                }
+            }
+            if (depth !== 0) {
+                return false;
+            }
+
+            return tokens;
+        },
+
+        _parseToken: function(token, args) {
+            // parsing pattern based on ICU grammar:
+            // http://icu-project.org/apiref/icu4c/classMessageFormat.html#details
+            const param = Craft.trim(token[0]);
+            if (typeof args[param] === 'undefined') {
+                return `{${token.join(',')}}`;
+            }
+            const arg = args[param];
+            const type = typeof token[1] !== 'undefined' ? Craft.trim(token[1]) : 'none';
+            switch (type) {
+                case 'number':
+                    let format = typeof token[2] !== 'undefined' ? Craft.trim(token[2]) : null;
+                    if (format !== null && format !== 'integer') {
+                        throw `Message format 'number' is only supported for integer values.`;
+                    }
+                    let number = Craft.formatNumber(arg);
+                    let pos;
+                    if (format === null && (pos = `${arg}`.indexOf('.')) !== -1) {
+                        number += `.${arg.substr(pos + 1)}`;
+                    }
+
+                    return number;
+                case 'none':
+                    return arg;
+                case 'plural':
+                    /* http://icu-project.org/apiref/icu4c/classicu_1_1PluralFormat.html
+                    pluralStyle = [offsetValue] (selector '{' message '}')+
+                    offsetValue = "offset:" number
+                    selector = explicitValue | keyword
+                    explicitValue = '=' number  // adjacent, no white space in between
+                    keyword = [^[[:Pattern_Syntax:][:Pattern_White_Space:]]]+
+                    message: see MessageFormat
+                    */
+                    if (typeof token[2] === 'undefined') {
+                        return false;
+                    }
+                    plural = this._tokenizePattern(token[2]);
+                    const c = plural.length;
+                    let message = false;
+                    let offset = 0;
+                    for (let i = 0; i + 1 < c; i++) {
+                        if (typeof plural[i] === 'object' || typeof plural[i + 1] !== 'object') {
+                            return false;
+                        }
+                        let selector = Craft.trim(plural[i++]);
+                        let selectorChars = [...selector];
+
+                        if (i === 1 && selector.substring(0, 7) === 'offset:') {
+                            let pos = [...selector.replace(/[\n\r\t]/g, ' ')].indexOf(' ', 7);
+                            if (pos === -1) {
+                                throw 'Message pattern is invalid.';
+                            }
+                            let offset = parseInt(Craft.trim(selectorChars.slice(7, pos).join('')));
+                            selector = Craft.trim(selectorChars.slice(pos + 1, pos + 1 + selectorChars.length).join(''));
+                        }
+                        if (
+                            message === false &&
+                            selector === 'other' ||
+                            selector[0] === '=' && parseInt(selectorChars.slice(1, 1 + selectorChars.length).join('')) === arg ||
+                            selector === 'one' && arg - offset === 1
+                        ) {
+                            message = (typeof plural[i] === 'string' ? [plural[i]] : plural[i]).map((p) => {
+                                return p.replace('#', arg - offset);
+                            }).join(',');
+                        }
+                    }
+                    if (message !== false) {
+                        return this.formatMessage(message, args);
+                    }
+                    break;
+                default:
+                    throw `Message format '${type}' is not supported.`;
+            }
+
+            return false;
         },
 
         formatDate: function(date) {
@@ -188,6 +323,16 @@ $.extend(Craft,
                 params = Craft.trim(params, '&?');
             }
 
+            // Was there already an anchor on the path?
+            var apos = path.indexOf('#');
+            if (apos !== -1) {
+                // Only keep it if the params didn't specify a new anchor
+                if (!anchor) {
+                    anchor = path.substr(apos + 1);
+                }
+                path = path.substr(0, apos);
+            }
+
             // Were there already any query string params in the path?
             var qpos = path.indexOf('?');
             if (qpos !== -1) {
@@ -197,7 +342,7 @@ $.extend(Craft,
 
             // Return path if it appears to be an absolute URL.
             if (path.search('://') !== -1 || path[0] === '/') {
-                return path + (params ? '?' + params : '');
+                return path + (params ? '?' + params : '') + (anchor ? '#' + anchor : '');
             }
 
             path = Craft.trim(path, '/');
@@ -844,6 +989,9 @@ $.extend(Craft,
          * @return boolean
          */
         inArray: function(elem, arr) {
+            if ($.isPlainObject(arr)) {
+                arr = Object.values(arr);
+            }
             return ($.inArray(elem, arr) !== -1);
         },
 
@@ -1464,6 +1612,10 @@ $.extend($.fn,
                         thisSettings.value = $(this).attr('data-value');
                     }
 
+                    if (Garnish.hasAttr(this, 'data-indeterminate-value')) {
+                        thisSettings.indeterminateValue = $(this).attr('data-indeterminate-value');
+                    }
+
                     if (!$.data(this, 'lightswitch')) {
                         new Craft.LightSwitch(this, thisSettings);
                     }
@@ -1697,6 +1849,9 @@ Craft.BaseElementEditor = Garnish.Base.extend(
 
                     this.hud.$hud.data('elementEditor', this);
 
+                    // Disable browser input validation
+                    this.hud.$body.attr('novalidate', '');
+
                     this.hud.on('hide', $.proxy(function() {
                         delete this.hud;
                     }, this));
@@ -1757,7 +1912,6 @@ Craft.BaseElementEditor = Garnish.Base.extend(
             var $instructions = this.$fieldsContainer.find('> .meta > .field > .heading > .instructions');
 
             for (var i = 0; i < $instructions.length; i++) {
-
                 $instructions.eq(i)
                     .replaceWith($('<span/>', {
                         'class': 'info',
@@ -1900,9 +2054,6 @@ Craft.BaseElementEditor = Garnish.Base.extend(
  */
 Craft.BaseElementIndex = Garnish.Base.extend(
     {
-        // Properties
-        // =========================================================================
-
         initialized: false,
         elementType: null,
 
@@ -1973,9 +2124,6 @@ Craft.BaseElementIndex = Garnish.Base.extend(
         exporters: null,
         _$detachedToolbarItems: null,
         _$triggers: null,
-
-        // Public methods
-        // =========================================================================
 
         /**
          * Constructor
@@ -2133,7 +2281,6 @@ Craft.BaseElementIndex = Garnish.Base.extend(
                 this.stopSearching();
 
                 this.updateElementsIfSearchTextChanged();
-
             }, this));
 
             // Auto-focus the Search box
@@ -2261,7 +2408,6 @@ Craft.BaseElementIndex = Garnish.Base.extend(
                 } else {
                     Craft.cp.displayError(Craft.t('app', 'A server error occurred.'));
                 }
-
             }, this));
         },
 
@@ -2313,6 +2459,30 @@ Craft.BaseElementIndex = Garnish.Base.extend(
         },
 
         getDefaultSourceKey: function() {
+            if (this.settings.defaultSource) {
+                var paths = this.settings.defaultSource.split('/'),
+                    path = '';
+
+                // Expand the tree
+                for (var i = 0; i < paths.length; i++) {
+                    path += paths[i];
+                    var $source = this.getSourceByKey(path);
+
+                    // If the folder can't be found, then just go to the stored instance source.
+                    if (!$source) {
+                        return this.instanceState.selectedSource;
+                    }
+
+                    this._expandSource($source);
+                    path += '/';
+                }
+
+                // Just make sure that the modal is aware of the newly expanded sources, too.
+                this._setSite(this.siteId);
+
+                return this.settings.defaultSource;
+            }
+
             return this.instanceState.selectedSource;
         },
 
@@ -2516,7 +2686,6 @@ Craft.BaseElementIndex = Garnish.Base.extend(
                 } else {
                     Craft.cp.displayError(Craft.t('app', 'A server error occurred.'));
                 }
-
             }, this));
         },
 
@@ -2604,7 +2773,6 @@ Craft.BaseElementIndex = Garnish.Base.extend(
         },
 
         afterAction: function(action, params) {
-
             // There may be a new background job that needs to be run
             Craft.cp.runQueue();
 
@@ -2658,6 +2826,15 @@ Craft.BaseElementIndex = Garnish.Base.extend(
 
         getSelectedElementIds: function() {
             return this.view ? this.view.getSelectedElementIds() : [];
+        },
+
+        setStatus: function(status) {
+            // Find the option (and make sure it actually exists)
+            var $option = this.statusMenu.$options.filter('a[data-status="' + status + '"]:first');
+
+            if ($option.length) {
+                this.statusMenu.selectOption($option[0]);
+            }
         },
 
         getSortAttributeOption: function(attr) {
@@ -2771,6 +2948,12 @@ Craft.BaseElementIndex = Garnish.Base.extend(
                     this.$statusMenuContainer.addClass('hidden');
                 } else {
                     this.$statusMenuContainer.removeClass('hidden');
+                }
+
+                if (this.trashed) {
+                    // Swap to the initial status
+                    var $firstOption = this.statusMenu.$options.first();
+                    this.setStatus($firstOption.data('status'));
                 }
             }
 
@@ -3088,9 +3271,6 @@ Craft.BaseElementIndex = Garnish.Base.extend(
             this.base();
         },
 
-        // Events
-        // =========================================================================
-
         onAfterInit: function() {
             this.settings.onAfterInit();
             this.trigger('afterInit');
@@ -3130,9 +3310,6 @@ Craft.BaseElementIndex = Garnish.Base.extend(
             this.settings.onAfterAction(action, params);
             this.trigger('afterAction', {action: action, params: params});
         },
-
-        // Private methods
-        // =========================================================================
 
         // UI state handlers
         // -------------------------------------------------------------------------
@@ -3672,6 +3849,7 @@ Craft.BaseElementIndex = Garnish.Base.extend(
                 $spinner.removeClass('hidden');
 
                 var params = this.getViewParams();
+                delete params.criteria.offset;
                 delete params.criteria.limit;
 
                 params.type = $typeField.find('select').val();
@@ -3698,7 +3876,6 @@ Craft.BaseElementIndex = Garnish.Base.extend(
                     } else {
                         Craft.cp.displayError(Craft.t('app', 'A server error occurred.'));
                     }
-
                 }, this));
             });
         },
@@ -3721,17 +3898,13 @@ Craft.BaseElementIndex = Garnish.Base.extend(
             }
         }
     },
-
-// Static Properties
-// =============================================================================
-
     {
         defaults: {
             context: 'index',
             modal: null,
             storageKey: null,
             criteria: null,
-            batchSize: 50,
+            batchSize: 100,
             disabledElementIds: [],
             selectable: false,
             multiSelect: false,
@@ -3741,6 +3914,7 @@ Craft.BaseElementIndex = Garnish.Base.extend(
             refreshSourcesAction: 'element-indexes/get-source-tree-html',
             updateElementsAction: 'element-indexes/get-elements',
             submitActionsAction: 'element-indexes/perform-action',
+            defaultSource: null,
 
             onAfterInit: $.noop,
             onSelectSource: $.noop,
@@ -4053,7 +4227,6 @@ Craft.BaseElementIndexView = Garnish.Base.extend(
                     this.addListener(this.$scroller, 'scroll', 'maybeLoadMore');
                     this.maybeLoadMore();
                 }
-
             }, this));
         },
 
@@ -4792,7 +4965,8 @@ Craft.BaseElementSelectorModal = Garnish.Modal.extend(
                         multiSelect: this.settings.multiSelect,
                         buttonContainer: this.$secondaryButtons,
                         onSelectionChange: $.proxy(this, 'onSelectionChange'),
-                        hideSidebar: this.settings.hideSidebar
+                        hideSidebar: this.settings.hideSidebar,
+                        defaultSource: this.settings.defaultSource
                     });
 
                     // Double-clicking or double-tapping should select the elements
@@ -4804,7 +4978,6 @@ Craft.BaseElementSelectorModal = Garnish.Modal.extend(
                         }
                     });
                 }
-
             }, this));
         }
     },
@@ -4821,7 +4994,8 @@ Craft.BaseElementSelectorModal = Garnish.Modal.extend(
             hideOnSelect: true,
             onCancel: $.noop,
             onSelect: $.noop,
-            hideSidebar: false
+            hideSidebar: false,
+            defaultSource: null
         }
     });
 
@@ -5029,7 +5203,6 @@ Craft.AdminTable = Garnish.Base.extend(
                         Craft.cp.displayError(Craft.t('app', this.settings.reorderFailMessage));
                     }
                 }
-
             }, this));
         },
 
@@ -5184,7 +5357,6 @@ Craft.AssetEditor = Craft.BaseElementEditor.extend(
                     this.addListener($imageEditorTrigger, 'click', 'showImageEditor');
                 }
             }
-
         },
 
         showImageEditor: function()
@@ -5246,6 +5418,7 @@ Craft.AssetImageEditor = Garnish.Modal.extend(
         cropperHandles: null,
         cropperGrid: null,
         croppingShade: null,
+        croppingAreaText: null,
 
         // Image state attributes
         imageStraightenAngle: 0,
@@ -5334,7 +5507,6 @@ Craft.AssetImageEditor = Garnish.Modal.extend(
          * @param data
          */
         loadEditor: function(data) {
-
             if (!data.html) {
                 alert(Craft.t('app', 'Could not load the image editor.'));
             }
@@ -5374,7 +5546,6 @@ Craft.AssetImageEditor = Garnish.Modal.extend(
 
             // Load image and set up the initial properties
             fabric.Image.fromURL(imageUrl, $.proxy(function(imageObject) {
-
                 this.image = imageObject;
                 this.image.set({
                     originX: 'center',
@@ -5448,7 +5619,6 @@ Craft.AssetImageEditor = Garnish.Modal.extend(
          * Reload the image to better fit the current available image editor viewport.
          */
         _reloadImage: function () {
-
             if (this.imageIsLoading) {
                 return;
             }
@@ -5523,7 +5693,6 @@ Craft.AssetImageEditor = Garnish.Modal.extend(
          * Reposition the editor elements to accurately reflect the editor state with current dimensions
          */
         _repositionEditorElements: function() {
-
             // Remember what the dimensions were before the resize took place
             var previousEditorDimensions = {
                 width: this.editorWidth,
@@ -5618,7 +5787,6 @@ Craft.AssetImageEditor = Garnish.Modal.extend(
                 if (this.currentView !== 'crop') {
                     deltaX = this.viewport.left - this.image.left;
                     deltaY = this.viewport.top - this.image.top;
-
                 } else {
                     // Unless we have a cropper showing, in which case drop it in the middle of the cropper
                     deltaX = this.clipper.left - this.image.left;
@@ -5679,7 +5847,6 @@ Craft.AssetImageEditor = Garnish.Modal.extend(
                 } else {
                     // If this is the first initial reposition, no cropper state yet
                     if (this.cropperState) {
-
                         // Recall the state
                         var state = this.cropperState;
 
@@ -5775,7 +5942,6 @@ Craft.AssetImageEditor = Garnish.Modal.extend(
          * Set up listeners for the controls.
          */
         _addControlListeners: function() {
-
             // Tabs
             this.addListener(this.$tabs, 'click', this._handleTabClick);
 
@@ -5848,7 +6014,6 @@ Craft.AssetImageEditor = Garnish.Modal.extend(
 
             this.setCroppingConstraint(constraint);
             this.enforceCroppingConstraint();
-
         },
 
         /**
@@ -5857,7 +6022,6 @@ Craft.AssetImageEditor = Garnish.Modal.extend(
          * @param ev
          */
         _handleOrientationClick: function (ev) {
-
             if (ev.currentTarget.value === this.constraintOrientation) {
                 return;
             }
@@ -6051,7 +6215,6 @@ Craft.AssetImageEditor = Garnish.Modal.extend(
          */
         rotateImage: function(degrees) {
             if (!this.animationInProgress) {
-
                 // We're not that kind of an establishment, sir.
                 if (degrees !== 90 && degrees !== -90) {
                     return false;
@@ -6548,7 +6711,6 @@ Craft.AssetImageEditor = Garnish.Modal.extend(
          * @param dimensions
          */
         getZoomToFitRatio: function(dimensions) {
-
             // Get the bounding box for a rotated image
             var boundingBox = this._getImageBoundingBox(dimensions);
 
@@ -6732,18 +6894,20 @@ Craft.AssetImageEditor = Garnish.Modal.extend(
          * Switch out of crop mode.
          */
         disableCropMode: function() {
-
             var viewportProperties = {};
 
+            this._hideCropper();
+            var imageDimensions = this.getScaledImageDimensions();
+            var targetZoom = this.getZoomToCoverRatio(imageDimensions) * this.scaleFactor;
+            var inverseZoomFactor = targetZoom / this.zoomRatio;
+            this.zoomRatio = targetZoom;
+
             var imageProperties = {
+                width: imageDimensions.width * this.zoomRatio,
+                height: imageDimensions.height * this.zoomRatio,
                 left: this.editorWidth / 2,
                 top: this.editorHeight / 2
             };
-
-            this._hideCropper();
-            var targetZoom = this.getZoomToCoverRatio(this.getScaledImageDimensions()) * this.scaleFactor;
-            var inverseZoomFactor = targetZoom / this.zoomRatio;
-            this.zoomRatio = targetZoom;
 
             var offsetX = this.clipper.left - this.image.left;
             var offsetY = this.clipper.top - this.image.top;
@@ -6787,7 +6951,6 @@ Craft.AssetImageEditor = Garnish.Modal.extend(
          * @private
          */
         _editorModeTransition: function (callback, imageProperties, viewportProperties) {
-
             if (!this.animationInProgress) {
                 this.animationInProgress = true;
 
@@ -6829,7 +6992,6 @@ Craft.AssetImageEditor = Garnish.Modal.extend(
                 context.translate(cW / 2, cH / 2);
                 context.rotate(Math.PI * 2 * rotation);
                 for (var i = 0; i < lines; i++) {
-
                     context.beginPath();
                     context.rotate(Math.PI * 2 / lines);
                     context.moveTo(cW / 10, 0);
@@ -6870,6 +7032,7 @@ Craft.AssetImageEditor = Garnish.Modal.extend(
                 this.croppingCanvas.remove(this.cropperHandles);
                 this.croppingCanvas.remove(this.cropperGrid);
                 this.croppingCanvas.remove(this.croppingRectangle);
+                this.croppingCanvas.remove(this.croppingAreaText);
 
                 this.croppingCanvas = null;
                 this.renderCropper = null;
@@ -6962,6 +7125,7 @@ Craft.AssetImageEditor = Garnish.Modal.extend(
                 this.croppingCanvas.remove(this.cropperHandles);
                 this.croppingCanvas.remove(this.cropperGrid);
                 this.croppingCanvas.remove(this.croppingRectangle);
+                this.croppingCanvas.remove(this.croppingAreaText);
             }
             this._redrawCropperElements._.lineOptions = {
                 strokeWidth: 4,
@@ -7016,9 +7180,32 @@ Craft.AssetImageEditor = Garnish.Modal.extend(
                 }
             );
 
+            this._redrawCropperElements._.cropTextTop = this.croppingRectangle.top + (this.clipper.height / 2) + 12;
+            this._redrawCropperElements._.cropTextBackgroundColor = 'rgba(0,0,0,0)';
+
+            if (this._redrawCropperElements._.cropTextTop + 12 > this.editorHeight - 2) {
+                this._redrawCropperElements._.cropTextTop -= 24;
+                this._redrawCropperElements._.cropTextBackgroundColor = 'rgba(0,0,0,0.5)';
+            }
+
+            this.croppingAreaText = new fabric.Textbox(Math.round(this.clipper.width) + ' x ' + Math.round(this.clipper.height), {
+                left: this.croppingRectangle.left,
+                top: this._redrawCropperElements._.cropTextTop,
+                fontSize: 13,
+                fill: 'rgb(200,200,200)',
+                backgroundColor: this._redrawCropperElements._.cropTextBackgroundColor,
+                font: 'Craft',
+                width: 70,
+                height: 15,
+                originX: 'center',
+                originY: 'center',
+                textAlign: 'center'
+            });
+
             this.croppingCanvas.add(this.cropperHandles);
             this.croppingCanvas.add(this.cropperGrid);
             this.croppingCanvas.add(this.croppingRectangle);
+            this.croppingCanvas.add(this.croppingAreaText);
         },
 
         /**
@@ -7183,7 +7370,7 @@ Craft.AssetImageEditor = Garnish.Modal.extend(
             this._handleCropperDrag._.deltaY = ev.pageY - this.previousMouseY;
 
             if (this._handleCropperDrag._.deltaX === 0 && this._handleCropperDrag._.deltaY === 0) {
-                return;
+                return false;
             }
 
             this._handleCropperDrag._.rectangle = {
@@ -7195,16 +7382,50 @@ Craft.AssetImageEditor = Garnish.Modal.extend(
 
             this._handleCropperDrag._.vertices = this._getRectangleVertices(this._handleCropperDrag._.rectangle, this._handleCropperDrag._.deltaX, this._handleCropperDrag._.deltaY);
 
-            // Just make sure that the cropper stays inside the image
+            // If this would drag it outside of the image
             if (!this.arePointsInsideRectangle(this._handleCropperDrag._.vertices, this.imageVerticeCoords)) {
-                return;
+                // Try to find the furthest point in the same general direction where we can drag it
+
+                // Delta iterator setup
+                this._handleCropperDrag._.dxi = 0;
+                this._handleCropperDrag._.dyi = 0;
+                this._handleCropperDrag._.xStep = this._handleCropperDrag._.deltaX > 0 ? -1 : 1;
+                this._handleCropperDrag._.yStep = this._handleCropperDrag._.deltaY > 0 ? -1 : 1;
+
+                // The furthest we can move
+                this._handleCropperDrag._.furthest = 0;
+                this._handleCropperDrag._.furthestDeltas = {};
+
+                // Loop through every combination of dragging it not so far
+                for (this._handleCropperDrag._.dxi = Math.min(Math.abs(this._handleCropperDrag._.deltaX), 10); this._handleCropperDrag._.dxi >= 0; this._handleCropperDrag._.dxi--) {
+                    for (this._handleCropperDrag._.dyi = Math.min(Math.abs(this._handleCropperDrag._.deltaY), 10); this._handleCropperDrag._.dyi >= 0; this._handleCropperDrag._.dyi--) {
+                        this._handleCropperDrag._.vertices = this._getRectangleVertices(this._handleCropperDrag._.rectangle, this._handleCropperDrag._.dxi * (this._handleCropperDrag._.deltaX > 0 ? 1 : -1), this._handleCropperDrag._.dyi * (this._handleCropperDrag._.deltaY > 0 ? 1 : -1));
+
+                        if (this.arePointsInsideRectangle(this._handleCropperDrag._.vertices, this.imageVerticeCoords)) {
+                            if (this._handleCropperDrag._.dxi + this._handleCropperDrag._.dyi > this._handleCropperDrag._.furthest) {
+                                this._handleCropperDrag._.furthest = this._handleCropperDrag._.dxi + this._handleCropperDrag._.dyi;
+                                this._handleCropperDrag._.furthestDeltas = {
+                                    x: this._handleCropperDrag._.dxi * (this._handleCropperDrag._.deltaX > 0 ? 1 : -1),
+                                    y: this._handleCropperDrag._.dyi * (this._handleCropperDrag._.deltaY > 0 ? 1 : -1)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // REALLY can't drag along the cursor movement
+                if (this._handleCropperDrag._.furthest == 0) {
+                    return;
+                } else {
+                    this._handleCropperDrag._.deltaX = this._handleCropperDrag._.furthestDeltas.x;
+                    this._handleCropperDrag._.deltaY = this._handleCropperDrag._.furthestDeltas.y;
+                }
             }
 
             this.clipper.set({
                 left: this.clipper.left + this._handleCropperDrag._.deltaX,
                 top: this.clipper.top + this._handleCropperDrag._.deltaY
             });
-
         },
 
         /**
@@ -7252,7 +7473,6 @@ Craft.AssetImageEditor = Garnish.Modal.extend(
          * @param constraint
          */
         setCroppingConstraint: function(constraint) {
-
             // In case this caused the sidebar width to change.
             this.updateSizeAndPosition();
 
@@ -7364,10 +7584,6 @@ Craft.AssetImageEditor = Garnish.Modal.extend(
             this._handleCropperResize._.deltaX = ev.pageX - this.previousMouseX;
             this._handleCropperResize._.deltaY = ev.pageY - this.previousMouseY;
 
-            // Center deltas
-            this._handleCropperResize._.topDelta = 0;
-            this._handleCropperResize._.leftDelta = 0;
-
             if (this.scalingCropper === 'b' || this.scalingCropper === 't') {
                 this._handleCropperResize._.deltaX = 0;
             }
@@ -7380,115 +7596,15 @@ Craft.AssetImageEditor = Garnish.Modal.extend(
                 return;
             }
 
-            this._handleCropperResize._.rectangle = {
+            // Translate from center-center origin to absolute coords
+            this._handleCropperResize._.startingRectangle = {
                 left: this.clipper.left - this.clipper.width / 2,
                 top: this.clipper.top - this.clipper.height / 2,
                 width: this.clipper.width,
                 height: this.clipper.height
-            };
-
-            // Lock the aspect ratio if needed
-            if (this.croppingConstraint) {
-                this._handleCropperResize._.change = 0;
-
-                // Take into account the mouse direction and figure out the "real" change in cropper size
-                switch (this.scalingCropper) {
-                    case 't':
-                        this._handleCropperResize._.change = -this._handleCropperResize._.deltaY;
-                        break;
-                    case 'b':
-                        this._handleCropperResize._.change = this._handleCropperResize._.deltaY;
-                        break;
-                    case 'r':
-                        this._handleCropperResize._.change = this._handleCropperResize._.deltaX;
-                        break;
-                    case 'l':
-                        this._handleCropperResize._.change = -this._handleCropperResize._.deltaX;
-                        break;
-                    case 'tr':
-                        this._handleCropperResize._.change = -this._handleCropperResize._.deltaY + this._handleCropperResize._.deltaX;
-                        break;
-                    case 'tl':
-                        this._handleCropperResize._.change = -this._handleCropperResize._.deltaY - this._handleCropperResize._.deltaX;
-                        break;
-                    case 'br':
-                        this._handleCropperResize._.change = this._handleCropperResize._.deltaY + this._handleCropperResize._.deltaX;
-                        break;
-                    case 'bl':
-                        this._handleCropperResize._.change = this._handleCropperResize._.deltaY - this._handleCropperResize._.deltaX;
-                        break;
-                }
-
-                if (this.croppingConstraint > 1) {
-                    this._handleCropperResize._.deltaX = this._handleCropperResize._.change;
-                    this._handleCropperResize._.deltaY = this._handleCropperResize._.deltaX / this.croppingConstraint;
-                } else {
-                    this._handleCropperResize._.deltaY = this._handleCropperResize._.change;
-                    this._handleCropperResize._.deltaX = this._handleCropperResize._.deltaY * this.croppingConstraint;
-                }
-
-                this._handleCropperResize._.rectangle.height += this._handleCropperResize._.deltaY;
-                this._handleCropperResize._.rectangle.width += this._handleCropperResize._.deltaX;
-
-                // Make the cropper compress/expand relative to the correct edge to make it feel "right"
-                if (this.scalingCropper.match(/t/)) {
-                    this._handleCropperResize._.rectangle.top -= this._handleCropperResize._.deltaY;
-                    this._handleCropperResize._.rectangle.left -= this._handleCropperResize._.deltaX / 2;
-                    this._handleCropperResize._.topDelta = -this._handleCropperResize._.deltaY/2;
-                }
-
-                if (this.scalingCropper.match(/b/)) {
-                    this._handleCropperResize._.rectangle.left += -this._handleCropperResize._.deltaX / 2;
-                    this._handleCropperResize._.topDelta = this._handleCropperResize._.deltaY/2;
-                }
-
-                if (this.scalingCropper.match(/r/)) {
-                    this._handleCropperResize._.rectangle.top += -this._handleCropperResize._.deltaY / 2;
-                    this._handleCropperResize._.leftDelta = this._handleCropperResize._.deltaX/2;
-                }
-
-                if (this.scalingCropper.match(/l/)) {
-                    this._handleCropperResize._.rectangle.top -= this._handleCropperResize._.deltaY / 2;
-                    this._handleCropperResize._.rectangle.left -= this._handleCropperResize._.deltaX;
-                    this._handleCropperResize._.leftDelta = -this._handleCropperResize._.deltaX/2;
-                }
-            } else {
-
-                // Lock the aspect ratio
-                if (this.shiftKeyHeld &&
-                    (this.scalingCropper === 'tl' || this.scalingCropper === 'tr' ||
-                    this.scalingCropper === 'bl' || this.scalingCropper === 'br')
-                ) {
-                    this._handleCropperResize._.ratio;
-                    if (Math.abs(this._handleCropperResize._.deltaX) > Math.abs(this._handleCropperResize._.deltaY)) {
-                        this._handleCropperResize._.ratio = this.clipper.width / this.clipper.height;
-                        this._handleCropperResize._.deltaY = this._handleCropperResize._.deltaX / this._handleCropperResize._.ratio;
-                        this._handleCropperResize._.deltaY *= (this.scalingCropper === 'tr' || this.scalingCropper === 'bl') ? -1 : 1;
-                    } else {
-                        this._handleCropperResize._.ratio = this.clipper.width / this.clipper.height;
-                        this._handleCropperResize._.deltaX = this._handleCropperResize._.deltaY * this._handleCropperResize._.ratio;
-                        this._handleCropperResize._.deltaX *= (this.scalingCropper === 'tr' || this.scalingCropper === 'bl') ? -1 : 1;
-                    }
-                }
-
-                if (this.scalingCropper.match(/t/)) {
-                    this._handleCropperResize._.rectangle.top += this._handleCropperResize._.deltaY;
-                    this._handleCropperResize._.rectangle.height -= this._handleCropperResize._.deltaY;
-                }
-                if (this.scalingCropper.match(/b/)) {
-                    this._handleCropperResize._.rectangle.height += this._handleCropperResize._.deltaY;
-                }
-                if (this.scalingCropper.match(/r/)) {
-                    this._handleCropperResize._.rectangle.width += this._handleCropperResize._.deltaX;
-                }
-                if (this.scalingCropper.match(/l/)) {
-                    this._handleCropperResize._.rectangle.left += this._handleCropperResize._.deltaX;
-                    this._handleCropperResize._.rectangle.width -= this._handleCropperResize._.deltaX;
-                }
-
-                this._handleCropperResize._.topDelta = this._handleCropperResize._.deltaY/2;
-                this._handleCropperResize._.leftDelta = this._handleCropperResize._.deltaX/2;
             }
+
+            this._handleCropperResize._.rectangle = this._calculateNewCropperSizeByDeltas(this._handleCropperResize._.startingRectangle, this._handleCropperResize._.deltaX, this._handleCropperResize._.deltaY, this.scalingCropper);
 
             if (this._handleCropperResize._.rectangle.height < 30 || this._handleCropperResize._.rectangle.width < 30) {
                 return;
@@ -7498,9 +7614,10 @@ Craft.AssetImageEditor = Garnish.Modal.extend(
                 return;
             }
 
+            // Translate back to center-center origin.
             this.clipper.set({
-                top: this.clipper.top + this._handleCropperResize._.topDelta,
-                left: this.clipper.left + this._handleCropperResize._.leftDelta,
+                top: this._handleCropperResize._.rectangle.top + this._handleCropperResize._.rectangle.height / 2,
+                left: this._handleCropperResize._.rectangle.left + this._handleCropperResize._.rectangle.width / 2,
                 width: this._handleCropperResize._.rectangle.width,
                 height: this._handleCropperResize._.rectangle.height
             });
@@ -7508,6 +7625,131 @@ Craft.AssetImageEditor = Garnish.Modal.extend(
             this._redrawCropperElements();
         },
 
+        _calculateNewCropperSizeByDeltas: function (startingRectangle, deltaX, deltaY, cropperDirection) {
+            if (typeof this._calculateNewCropperSizeByDeltas._ === 'undefined') {
+                this._calculateNewCropperSizeByDeltas._ = {};
+            }
+
+            // Center deltas
+            this._calculateNewCropperSizeByDeltas._.topDelta = 0;
+            this._calculateNewCropperSizeByDeltas._.leftDelta = 0;
+
+            this._calculateNewCropperSizeByDeltas._.rectangle = startingRectangle;
+            this._calculateNewCropperSizeByDeltas._.deltaX = deltaX;
+            this._calculateNewCropperSizeByDeltas._.deltaY = deltaY;
+
+            // Lock the aspect ratio if needed
+            if (this.croppingConstraint) {
+                this._calculateNewCropperSizeByDeltas._.change = 0;
+
+                // Take into account the mouse direction and figure out the "real" change in cropper size
+                switch (cropperDirection) {
+                    case 't':
+                        this._calculateNewCropperSizeByDeltas._.change = -this._calculateNewCropperSizeByDeltas._.deltaY;
+                        break;
+                    case 'b':
+                        this._calculateNewCropperSizeByDeltas._.change = this._calculateNewCropperSizeByDeltas._.deltaY;
+                        break;
+                    case 'r':
+                        this._calculateNewCropperSizeByDeltas._.change = this._calculateNewCropperSizeByDeltas._.deltaX;
+                        break;
+                    case 'l':
+                        this._calculateNewCropperSizeByDeltas._.change = -this._calculateNewCropperSizeByDeltas._.deltaX;
+                        break;
+                    case 'tr':
+                        this._calculateNewCropperSizeByDeltas._.change = Math.abs(this._calculateNewCropperSizeByDeltas._.deltaY) > Math.abs(this._calculateNewCropperSizeByDeltas._.deltaX) ? -this._calculateNewCropperSizeByDeltas._.deltaY : this._calculateNewCropperSizeByDeltas._.deltaX;
+                        break;
+                    case 'tl':
+                        this._calculateNewCropperSizeByDeltas._.change = Math.abs(this._calculateNewCropperSizeByDeltas._.deltaY) > Math.abs(this._calculateNewCropperSizeByDeltas._.deltaX) ? -this._calculateNewCropperSizeByDeltas._.deltaY : -this._calculateNewCropperSizeByDeltas._.deltaX;
+                        break;
+                    case 'br':
+                        this._calculateNewCropperSizeByDeltas._.change = Math.abs(this._calculateNewCropperSizeByDeltas._.deltaY) > Math.abs(this._calculateNewCropperSizeByDeltas._.deltaX) ? this._calculateNewCropperSizeByDeltas._.deltaY : this._calculateNewCropperSizeByDeltas._.deltaX;
+                        break;
+                    case 'bl':
+                        this._calculateNewCropperSizeByDeltas._.change = Math.abs(this._calculateNewCropperSizeByDeltas._.deltaY) > Math.abs(this._calculateNewCropperSizeByDeltas._.deltaX) ? this._calculateNewCropperSizeByDeltas._.deltaY : -this._calculateNewCropperSizeByDeltas._.deltaX;
+                        break;
+                }
+
+                if (this.croppingConstraint > 1) {
+                    this._calculateNewCropperSizeByDeltas._.deltaX = this._calculateNewCropperSizeByDeltas._.change;
+                    this._calculateNewCropperSizeByDeltas._.deltaY = this._calculateNewCropperSizeByDeltas._.deltaX / this.croppingConstraint;
+                } else {
+                    this._calculateNewCropperSizeByDeltas._.deltaY = this._calculateNewCropperSizeByDeltas._.change;
+                    this._calculateNewCropperSizeByDeltas._.deltaX = this._calculateNewCropperSizeByDeltas._.deltaY * this.croppingConstraint;
+                }
+
+                this._calculateNewCropperSizeByDeltas._.rectangle.height += this._calculateNewCropperSizeByDeltas._.deltaY;
+                this._calculateNewCropperSizeByDeltas._.rectangle.width += this._calculateNewCropperSizeByDeltas._.deltaX;
+
+                // Make the cropper compress/expand relative to the correct edge to make it feel "right"
+                switch (cropperDirection) {
+                    case 't':
+                        this._calculateNewCropperSizeByDeltas._.rectangle.top -= this._calculateNewCropperSizeByDeltas._.deltaY;
+                        this._calculateNewCropperSizeByDeltas._.rectangle.left -= this._calculateNewCropperSizeByDeltas._.deltaX / 2;
+                        break;
+                    case 'b':
+                        this._calculateNewCropperSizeByDeltas._.rectangle.left += -this._calculateNewCropperSizeByDeltas._.deltaX / 2;
+                        break;
+                    case 'r':
+                        this._calculateNewCropperSizeByDeltas._.rectangle.top += -this._calculateNewCropperSizeByDeltas._.deltaY / 2;
+                        break;
+                    case 'l':
+                        this._calculateNewCropperSizeByDeltas._.rectangle.top -= this._calculateNewCropperSizeByDeltas._.deltaY / 2;
+                        this._calculateNewCropperSizeByDeltas._.rectangle.left -= this._calculateNewCropperSizeByDeltas._.deltaX;
+                        break;
+                    case 'tr':
+                        this._calculateNewCropperSizeByDeltas._.rectangle.top -= this._calculateNewCropperSizeByDeltas._.deltaY;
+                        break;
+                    case 'tl':
+                        this._calculateNewCropperSizeByDeltas._.rectangle.top -= this._calculateNewCropperSizeByDeltas._.deltaY;
+                        this._calculateNewCropperSizeByDeltas._.rectangle.left -= this._calculateNewCropperSizeByDeltas._.deltaX;
+                        break;
+                    case 'bl':
+                        this._calculateNewCropperSizeByDeltas._.rectangle.left -= this._calculateNewCropperSizeByDeltas._.deltaX;
+                        break;
+                }
+            } else {
+                // Lock the aspect ratio
+                if (this.shiftKeyHeld &&
+                    (cropperDirection === 'tl' || cropperDirection === 'tr' ||
+                        cropperDirection === 'bl' || cropperDirection === 'br')
+                ) {
+                    this._calculateNewCropperSizeByDeltas._.ratio;
+                    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                        this._calculateNewCropperSizeByDeltas._.ratio = startingRectangle.width / startingRectangle.height;
+                        this._calculateNewCropperSizeByDeltas._.deltaY = this._calculateNewCropperSizeByDeltas._.deltaX / this._calculateNewCropperSizeByDeltas._.ratio;
+                        this._calculateNewCropperSizeByDeltas._.deltaY *= (cropperDirection === 'tr' || cropperDirection === 'bl') ? -1 : 1;
+                    } else {
+                        this._calculateNewCropperSizeByDeltas._.ratio = startingRectangle.width / startingRectangle.height;
+                        this._calculateNewCropperSizeByDeltas._.deltaX = this._calculateNewCropperSizeByDeltas._.deltaY * this._calculateNewCropperSizeByDeltas._.ratio;
+                        this._calculateNewCropperSizeByDeltas._.deltaX *= (cropperDirection === 'tr' || cropperDirection === 'bl') ? -1 : 1;
+                    }
+                }
+
+                if (cropperDirection.match(/t/)) {
+                    this._calculateNewCropperSizeByDeltas._.rectangle.top += this._calculateNewCropperSizeByDeltas._.deltaY;
+                    this._calculateNewCropperSizeByDeltas._.rectangle.height -= this._calculateNewCropperSizeByDeltas._.deltaY;
+                }
+                if (cropperDirection.match(/b/)) {
+                    this._calculateNewCropperSizeByDeltas._.rectangle.height += this._calculateNewCropperSizeByDeltas._.deltaY;
+                }
+                if (cropperDirection.match(/r/)) {
+                    this._calculateNewCropperSizeByDeltas._.rectangle.width += this._calculateNewCropperSizeByDeltas._.deltaX;
+                }
+                if (cropperDirection.match(/l/)) {
+                    this._calculateNewCropperSizeByDeltas._.rectangle.left += this._calculateNewCropperSizeByDeltas._.deltaX;
+                    this._calculateNewCropperSizeByDeltas._.rectangle.width -= this._calculateNewCropperSizeByDeltas._.deltaX;
+                }
+            }
+
+            this._calculateNewCropperSizeByDeltas._.rectangle.top = this._calculateNewCropperSizeByDeltas._.rectangle.top;
+            this._calculateNewCropperSizeByDeltas._.rectangle.left = this._calculateNewCropperSizeByDeltas._.rectangle.left;
+            this._calculateNewCropperSizeByDeltas._.rectangle.width = this._calculateNewCropperSizeByDeltas._.rectangle.width;
+            this._calculateNewCropperSizeByDeltas._.rectangle.height = this._calculateNewCropperSizeByDeltas._.rectangle.height;
+
+            return this._calculateNewCropperSizeByDeltas._.rectangle;
+        },
+        
         /**
          * Set mouse cursor by it's position over cropper.
          *
@@ -7872,7 +8114,6 @@ Craft.AssetImageEditor = Garnish.Modal.extend(
          * @param dimensions
          */
         _getImageBoundingBox: function(dimensions) {
-
             var box = {};
 
             var angleInRadians = Math.abs(this.imageStraightenAngle) * (Math.PI / 180);
@@ -8526,7 +8767,6 @@ Craft.AssetIndex = Craft.BaseElementIndex.extend(
                         action: 'assets/move-asset',
                         params: fileMoveList[i]
                     });
-
                 }
                 this._performBatchRequests(parameterArray, function() {
                     moveCallback(folderDeleteList);
@@ -8685,7 +8925,7 @@ Craft.AssetIndex = Craft.BaseElementIndex.extend(
                 if (this.$includeSubfoldersContainer === null) {
                     var id = 'includeSubfolders-' + Math.floor(Math.random() * 1000000000);
 
-                    this.$includeSubfoldersContainer = $('<div style="margin-bottom: -23px; opacity: 0;"/>').insertAfter(this.$search);
+                    this.$includeSubfoldersContainer = $('<div style="margin-bottom: -25px; opacity: 0;"/>').insertAfter(this.$search);
                     var $subContainer = $('<div style="padding-top: 5px;"/>').appendTo(this.$includeSubfoldersContainer);
                     this.$includeSubfoldersCheckbox = $('<input type="checkbox" id="' + id + '" class="checkbox"/>').appendTo($subContainer);
                     $('<label class="light smalltext" for="' + id + '"/>').text(' ' + Craft.t('app', 'Search in subfolders')).appendTo($subContainer);
@@ -8718,7 +8958,7 @@ Craft.AssetIndex = Craft.BaseElementIndex.extend(
                 this.$includeSubfoldersContainer.velocity('stop');
 
                 this.$includeSubfoldersContainer.velocity({
-                    marginBottom: -23,
+                    marginBottom: -25,
                     opacity: 0
                 }, 'fast');
 
@@ -8867,7 +9107,6 @@ Craft.AssetIndex = Craft.BaseElementIndex.extend(
                     else {
                         doFollowup(parameterArray, parameterIndex, callback);
                     }
-
                 }.bind(this);
 
                 if (parameterArray[parameterIndex].choice === 'replace') {
@@ -9250,7 +9489,6 @@ Craft.AssetIndex = Craft.BaseElementIndex.extend(
                     if (textStatus === 'success' && data.error) {
                         alert(data.error);
                     }
-
                 }, this), 'json');
             }
         },
@@ -9342,7 +9580,6 @@ Craft.AssetIndex = Craft.BaseElementIndex.extend(
         },
 
         _performBatchRequests: function(parameterArray, finalCallback) {
-
             var responseArray = [];
 
             var doRequest = function (parameters) {
@@ -9367,7 +9604,6 @@ Craft.AssetIndex = Craft.BaseElementIndex.extend(
                 doRequest(parameterArray[i]);
             }
         }
-
     });
 
 // Register it!
@@ -9660,7 +9896,6 @@ Craft.AssetSelectInput = Craft.BaseElementSelectInput.extend(
                     range.moveStart("character", startPos);
                     range.select();
                 }
-
             }, this));
         },
 
@@ -10260,7 +10495,6 @@ Craft.AuthManager = Garnish.Base.extend(
                 else {
                     this.showLoginError();
                 }
-
             }, this));
         },
 
@@ -10393,7 +10627,7 @@ Craft.CategoryIndex = Craft.BaseElementIndex.extend(
                         if (this.settings.context === 'index' || group !== selectedGroup) {
                             href = this._getGroupTriggerHref(group);
                             label = (this.settings.context === 'index' ? group.name : Craft.t('app', 'New {group} category', {group: group.name}));
-                            menuHtml += '<li><a ' + href + '">' + Craft.escapeHtml(label) + '</a></li>';
+                            menuHtml += '<li><a ' + href + '>' + Craft.escapeHtml(label) + '</a></li>';
                         }
                     }
 
@@ -10673,7 +10907,6 @@ Craft.charts.DataTable = Garnish.Base.extend(
                         // do nothing
                     }
                 });
-
             }, this));
 
             this.columns = columns;
@@ -10843,7 +11076,6 @@ Craft.charts.Area = Craft.charts.BaseChart.extend(
         },
 
         draw: function(dataTable, settings) {
-
             this.base(dataTable, settings);
 
             if (this.tip) {
@@ -11154,7 +11386,6 @@ Craft.charts.Area = Craft.charts.BaseChart.extend(
                         // Show tip
 
                         this.tip.show();
-
                     }, this))
                     .on("mouseout", $.proxy(function(d, index) {
                         // Unexpand Plot
@@ -11300,7 +11531,6 @@ Craft.charts.Area = Craft.charts.BaseChart.extend(
  * Class Craft.charts.Utils
  */
 Craft.charts.utils = {
-
     getDuration: function(seconds) {
         var secondsNum = parseInt(seconds, 10);
 
@@ -11436,7 +11666,6 @@ Craft.ColorInput = Garnish.Base.extend({
     {
         if (Craft.ColorInput._browserSupportsColorInputs === null)
         {
-
         }
 
         return Craft.ColorInput._browserSupportsColorInputs;
@@ -11766,9 +11995,6 @@ Craft.CP = Garnish.Base.extend(
             this._selectTab($tab, this.$tabs.index($tab.parent()));
             this.updateTabs();
             this.$overflowTabBtn.data('menubtn').menu.hide();
-
-            // Fixes Redactor fixed toolbars on previously hidden panes
-            Garnish.$doc.trigger('scroll');
         },
 
         _selectTab: function($tab, index) {
@@ -11779,6 +12005,10 @@ Craft.CP = Garnish.Base.extend(
             } else {
                 $('#content').removeClass('square');
             }
+
+            Garnish.$win.trigger('resize');
+            // Fixes Redactor fixed toolbars on previously hidden panes
+            Garnish.$doc.trigger('scroll');
         },
 
         deselectTab: function() {
@@ -11883,8 +12113,12 @@ Craft.CP = Garnish.Base.extend(
             // Have we scrolled passed the top of #main?
             if (this.$main.length && this.$headerContainer[0].getBoundingClientRect().top < 0) {
                 if (!this.fixedHeader) {
-                    // Hard-set the header container height
                     var headerHeight = this.$headerContainer.height();
+
+                    // Hard-set the minimum content container height
+                    this.$contentContainer.css('min-height', 'calc(100vh - ' + (headerHeight + 14 + 48 - 1) + 'px)');
+
+                    // Hard-set the header container height
                     this.$headerContainer.height(headerHeight);
                     Garnish.$bod.addClass('fixed-header');
 
@@ -11895,18 +12129,15 @@ Craft.CP = Garnish.Base.extend(
                         top: headerHeight + 'px',
                         'max-height': 'calc(100vh - ' + headerHeight + 'px)'
                     };
-                    if (this.$sidebar.outerHeight() < contentHeight) {
-                        this.$sidebar.addClass('fixed').css(css);
-                    }
-                    if (this.$details.outerHeight() < contentHeight) {
-                        this.$details.addClass('fixed').css(css);
-                    }
+                    this.$sidebar.addClass('fixed').css(css);
+                    this.$details.addClass('fixed').css(css);
                     this.fixedHeader = true;
                 }
             }
             else if (this.fixedHeader) {
                 this.$headerContainer.height('auto');
                 Garnish.$bod.removeClass('fixed-header');
+                this.$contentContainer.css('min-height', '');
                 this.$sidebar.removeClass('fixed').css({
                     top: '',
                     'max-height': ''
@@ -11988,7 +12219,7 @@ Craft.CP = Garnish.Base.extend(
             this.$alerts.remove();
 
             if (Garnish.isArray(alerts) && alerts.length) {
-                this.$alerts = $('<ul id="alerts"/>').prependTo(this.$mainContainer);
+                this.$alerts = $('<ul id="alerts"/>').prependTo($('#page-container'));
 
                 for (var i = 0; i < alerts.length; i++) {
                     $('<li>' + alerts[i] + '</li>').appendTo(this.$alerts);
@@ -12024,9 +12255,7 @@ Craft.CP = Garnish.Base.extend(
                                 this.displayError(response.error);
                             }
                         }
-
                     }, this));
-
                 }, this));
             }
         },
@@ -12219,7 +12448,7 @@ Craft.CP = Garnish.Base.extend(
                 if (textStatus === 'success') {
                     this.trackJobProgressTimeout = null;
                     this.totalJobs = response.total;
-                    this.setJobInfo(response.jobs, true);
+                    this.setJobInfo(response.jobs);
 
                     if (this.jobInfo.length) {
                         // Check again after a delay
@@ -12229,7 +12458,7 @@ Craft.CP = Garnish.Base.extend(
             }, this));
         },
 
-        setJobInfo: function(jobInfo, animateIcon) {
+        setJobInfo: function(jobInfo) {
             if (!this.enableQueue) {
                 return;
             }
@@ -12255,7 +12484,7 @@ Craft.CP = Garnish.Base.extend(
                 this.displayedJobInfoUnchanged = 1;
             }
 
-            this.updateJobIcon(animateIcon);
+            this.updateJobIcon();
 
             // Fire a setJobInfo event
             this.trigger('setJobInfo');
@@ -12285,7 +12514,7 @@ Craft.CP = Garnish.Base.extend(
             }
         },
 
-        updateJobIcon: function(animate) {
+        updateJobIcon: function() {
             if (!this.enableQueue || !this.$nav.length) {
                 return;
             }
@@ -12297,8 +12526,8 @@ Craft.CP = Garnish.Base.extend(
 
                 if (this.displayedJobInfo.status === Craft.CP.JOB_STATUS_RESERVED || this.displayedJobInfo.status === Craft.CP.JOB_STATUS_WAITING) {
                     this.jobProgressIcon.hideFailMode();
-                    this.jobProgressIcon.setDescription(this.displayedJobInfo.description);
-                    this.jobProgressIcon.setProgress(this.displayedJobInfo.progress, animate);
+                    this.jobProgressIcon.setDescription(this.displayedJobInfo.description, this.displayedJobInfo.progressLabel);
+                    this.jobProgressIcon.setProgress(this.displayedJobInfo.progress);
                 }
                 else if (this.displayedJobInfo.status === Craft.CP.JOB_STATUS_FAILED) {
                     this.jobProgressIcon.showFailMode(Craft.t('app', 'Failed'));
@@ -12335,7 +12564,9 @@ var JobProgressIcon = Garnish.Base.extend(
         $li: null,
         $a: null,
         $label: null,
+        $progressLabel: null,
 
+        progress: null,
         failMode: false,
 
         _canvasSupported: null,
@@ -12369,7 +12600,9 @@ var JobProgressIcon = Garnish.Base.extend(
                 href: Craft.canAccessQueueManager ? Craft.getUrl('utilities/queue-manager') : null,
             }).appendTo(this.$li);
             this.$canvasContainer = $('<span class="icon"/>').appendTo(this.$a);
-            this.$label = $('<span class="label"></span>').appendTo(this.$a);
+            var $labelContainer = $('<span class="label"/>').appendTo(this.$a);
+            this.$label = $('<span/>').appendTo($labelContainer);
+            this.$progressLabel = $('<span class="progress-label"/>').appendTo($labelContainer).hide();
 
             this._canvasSupported = !!(document.createElement('canvas').getContext);
 
@@ -12397,12 +12630,17 @@ var JobProgressIcon = Garnish.Base.extend(
             }
         },
 
-        setDescription: function(description) {
+        setDescription: function(description, progressLabel) {
             this.$a.attr('title', description);
             this.$label.text(description);
+            if (progressLabel) {
+                this.$progressLabel.text(progressLabel).show();
+            } else {
+                this.$progressLabel.hide();
+            }
         },
 
-        setProgress: function(progress, animate) {
+        setProgress: function(progress) {
             if (this._canvasSupported) {
                 if (progress == 0) {
                     this._$staticCanvas.hide();
@@ -12410,7 +12648,7 @@ var JobProgressIcon = Garnish.Base.extend(
                 } else {
                     this._$staticCanvas.show();
                     this._$hoverCanvas.show();
-                    if (animate) {
+                    if (this.progress && progress > this.progress) {
                         this._animateArc(0, progress / 100);
                     }
                     else {
@@ -12421,6 +12659,8 @@ var JobProgressIcon = Garnish.Base.extend(
             else {
                 this._progressBar.setProgressPercentage(progress);
             }
+
+            this.progress = progress;
         },
 
         complete: function() {
@@ -12446,6 +12686,7 @@ var JobProgressIcon = Garnish.Base.extend(
             }
 
             this.failMode = true;
+            this.progress = null;
 
             if (this._canvasSupported) {
                 this._$bgCanvas.hide();
@@ -12601,7 +12842,6 @@ Craft.CustomizeSourcesModal = Garnish.Modal.extend(
                     this.$saveBtn.removeClass('disabled');
                     this.buildModal(response);
                 }
-
             }, this));
 
             this.addListener(this.$newHeadingBtn, 'click', 'handleNewHeadingBtnClick');
@@ -13042,7 +13282,6 @@ Craft.DataTableSorter = Garnish.DragSort.extend(
 
             return $helper;
         }
-
     },
     {
         defaults: {
@@ -13225,6 +13464,7 @@ Craft.DraftEditor = Garnish.Base.extend(
         $revisionBtn: null,
         $revisionLabel: null,
         $spinner: null,
+        $expandSiteStatusesBtn: null,
         $statusIcon: null,
 
         $editMetaBtn: null,
@@ -13234,6 +13474,7 @@ Craft.DraftEditor = Garnish.Base.extend(
         $saveMetaBtn: null,
 
         lastSerializedValue: null,
+        listeningForChanges: false,
         timeout: null,
         saving: false,
         saveXhr: null,
@@ -13256,7 +13497,12 @@ Craft.DraftEditor = Garnish.Base.extend(
             this.$revisionBtn = $('#revision-btn');
             this.$revisionLabel = $('#revision-label');
             this.$spinner = $('#revision-spinner');
+            this.$expandSiteStatusesBtn = $('#expand-status-btn');
             this.$statusIcon = $('#revision-status');
+
+            if (this.settings.canEditMultipleSites) {
+                this.addListener(this.$expandSiteStatusesBtn, 'click', 'expandSiteStatuses');
+            }
 
             if (this.settings.previewTargets.length) {
                 if (this.settings.enablePreview) {
@@ -13312,9 +13558,12 @@ Craft.DraftEditor = Garnish.Base.extend(
             }
         },
 
-        initForDraft: function() {
-            // Create the edit draft button
-            this.createEditMetaBtn();
+        listenForChanges: function() {
+            if (this.listeningForChanges) {
+                return;
+            }
+
+            this.listeningForChanges = true;
 
             this.addListener(Garnish.$bod, 'keypress,keyup,change,focus,blur,click,mousedown,mouseup', function(ev) {
                 if ($(ev.target).is(this.statusIcons())) {
@@ -13328,17 +13577,30 @@ Craft.DraftEditor = Garnish.Base.extend(
                     this.checkForm();
                 }
             });
+        },
+
+        stopListeningForChanges: function() {
+            this.removeListener(Garnish.$bod, 'keypress,keyup,change,focus,blur,click,mousedown,mouseup');
+            clearTimeout(this.timeout);
+            this.listeningForChanges = false;
+        },
+
+        initForDraft: function() {
+            // Create the edit draft button
+            this.createEditMetaBtn();
 
             this.addListener(this.$statusIcon, 'click', function() {
                 this.showStatusHud(this.$statusIcon);
             }.bind(this));
 
             this.addListener($('#merge-changes-btn'), 'click', this.mergeChanges);
+
+            this.listenForChanges();
         },
 
         mergeChanges: function() {
             // Make sure there aren't any unsaved changes
-            this.checkForm(true);
+            this.checkForm();
 
             // Make sure we aren't currently saving something
             if (this.saving) {
@@ -13360,6 +13622,121 @@ Craft.DraftEditor = Garnish.Base.extend(
                     $('#merge-changes-spinner').addClass('hidden');
                 }
             });
+        },
+
+        expandSiteStatuses: function() {
+            this.removeListener(this.$expandSiteStatusesBtn, 'click');
+            this.$expandSiteStatusesBtn.velocity({opacity: 0}, 'fast', function() {
+                this.$expandSiteStatusesBtn.remove();
+            }.bind(this));
+
+            var $enabledForSiteField = $(`#enabledForSite-${this.settings.siteId}-field`);
+            var $siteStatusPane = $enabledForSiteField.parent();
+            var $newFields = $();
+
+            if (!this.settings.revisionId) {
+                $enabledForSiteField.addClass('nested');
+                var $globalField = Craft.ui.createLightswitchField({
+                    id: 'enabled',
+                    label: Craft.t('app', 'Enabled everywhere'),
+                    name: 'enabled',
+                }).insertBefore($enabledForSiteField);
+                $globalField.find('label').css('font-weight', 'bold');
+                $newFields = $newFields.add($globalField);
+                var $globalLightswitch = $globalField.find('.lightswitch');
+
+                // Figure out what the "Enabled everywhere" lightswitch would have been set to when the page first loaded
+                var originalEnabledValue = (this.settings.enabled && !Craft.inArray(false, this.settings.siteStatuses))
+                    ? '1'
+                    : (this.settings.enabledForSite ? '-' : '');
+                var originalSerializedStatus = encodeURIComponent(`enabledForSite[${this.settings.siteId}]`) +
+                    '=' + (this.settings.enabledForSite ? '1' : '');
+                var serializedStatuses = `enabled=${originalEnabledValue}&${originalSerializedStatus}`;
+            }
+
+            var site, $siteField, $siteLightswitch;
+            var $siteFields = $().add($enabledForSiteField);
+            var $siteLightswitches = $enabledForSiteField.find('.lightswitch');
+
+            for (var i = 0; i < Craft.sites.length; i++) {
+                site = Craft.sites[i];
+                if (site.id != this.settings.siteId && this.settings.siteStatuses.hasOwnProperty(site.id)) {
+                    $siteField = Craft.ui.createLightswitchField({
+                        id: `enabledForSite-${site.id}`,
+                        label: Craft.t('app', 'Enabled for {site}', {site: site.name}),
+                        name: `enabledForSite[${site.id}]`,
+                        on: this.settings.siteStatuses[site.id],
+                        disabled: !!this.settings.revisionId,
+                    });
+                    if (!this.settings.revisionId) {
+                        $siteField.addClass('nested')
+                    }
+                    $siteField.appendTo($siteStatusPane);
+                    $siteFields = $siteFields.add($siteField);
+                    $newFields = $newFields.add($siteField);
+                    $siteLightswitch = $siteField.find('.lightswitch');
+                    $siteLightswitches = $siteLightswitches.add($siteLightswitch);
+                    serializedStatuses += '&' + encodeURIComponent(`enabledForSite[${site.id}]`) +
+                        '=' + $siteLightswitch.data('lightswitch').$input.val();
+                }
+            }
+
+            if (this.settings.revisionId) {
+                return;
+            }
+
+            Craft.cp.$primaryForm.data('initialSerializedValue',
+                Craft.cp.$primaryForm.data('initialSerializedValue').replace(originalSerializedStatus, serializedStatuses));
+
+            $newFields.each(function() {
+                var $field = $(this);
+                var height = $field.height();
+                $field
+                    .css('overflow', 'hidden')
+                    .height(0)
+                    .velocity({height: height}, 'fast', function() {
+                        $field.css({
+                            overflow: '',
+                            height: '',
+                        });
+                    });
+            });
+
+            $globalLightswitch.on('change', function() {
+                var enabled = $globalLightswitch.data('lightswitch').on;
+                $siteLightswitches.each(function() {
+                    if (enabled) {
+                        $(this).data('lightswitch').turnOn(true);
+                    } else {
+                        $(this).data('lightswitch').turnOff(true);
+                    }
+                })
+            });
+
+            var updateGlobalStatus = function() {
+                var allEnabled = true, allDisabled = true;
+                $siteLightswitches.each(function() {
+                    var enabled = $(this).data('lightswitch').on;
+                    if (enabled) {
+                        allDisabled = false;
+                    } else {
+                        allEnabled = false;
+                    }
+                    if (!allEnabled && !allDisabled) {
+                        return false;
+                    }
+                });
+                if (allEnabled) {
+                    $globalLightswitch.data('lightswitch').turnOn(true);
+                } else if (allDisabled) {
+                    $globalLightswitch.data('lightswitch').turnOff(true);
+                } else {
+                    $globalLightswitch.data('lightswitch').turnIndeterminate(true);
+                }
+            };
+
+            updateGlobalStatus();
+            $siteLightswitches.on('change', updateGlobalStatus);
         },
 
         showStatusHud: function(target) {
@@ -13483,13 +13860,23 @@ Craft.DraftEditor = Garnish.Base.extend(
         getPreview: function() {
             if (!this.preview) {
                 this.preview = new Craft.Preview(this);
+                this.preview.on('open', function() {
+                    if (!this.settings.draftId) {
+                        this.listenForChanges();
+                    }
+                }.bind(this));
+                this.preview.on('close', function() {
+                    if (!this.settings.draftId) {
+                        this.stopListeningForChanges();
+                    }
+                }.bind(this));
             }
             return this.preview;
         },
 
         openPreview: function() {
             return new Promise(function(resolve, reject) {
-                this.ensureIsDraftOrRevision()
+                this.ensureIsDraftOrRevision(true)
                     .then(function() {
                         this.getPreview().open();
                         resolve();
@@ -13498,9 +13885,17 @@ Craft.DraftEditor = Garnish.Base.extend(
             }.bind(this))
         },
 
-        ensureIsDraftOrRevision: function() {
+        ensureIsDraftOrRevision: function(onlyIfChanged) {
             return new Promise(function(resolve, reject) {
                 if (!this.settings.draftId && !this.settings.revisionId) {
+                    if (
+                        onlyIfChanged &&
+                        this.serializeForm(true) === Craft.cp.$primaryForm.data('initialSerializedValue')
+                    ) {
+                        resolve();
+                        return;
+                    }
+
                     this.createDraft()
                         .then(resolve)
                         .catch(reject);
@@ -13528,20 +13923,19 @@ Craft.DraftEditor = Garnish.Base.extend(
         },
 
         checkForm: function(force) {
-            // If this isn't a draft, then there's nothing to check
-            if (!this.settings.draftId) {
+            // If this isn't a draft and there's no active preview, then there's nothing to check
+            if (
+                this.settings.revisionId ||
+                (!this.settings.draftId && !this.isPreviewActive())
+            ) {
                 return;
             }
-
             clearTimeout(this.timeout);
             this.timeout = null;
 
             // Has anything changed?
             var data = this.serializeForm(true);
-            if (
-                (data !== Craft.cp.$primaryForm.data('initialSerializedValue')) &&
-                (force || (data !== this.lastSerializedValue))
-            ) {
+            if (force || data !== this.lastSerializedValue) {
                 this.saveDraft(data);
             }
         },
@@ -13566,15 +13960,14 @@ Craft.DraftEditor = Garnish.Base.extend(
                     return;
                 }
 
-                this.lastSerializedValue = data;
-
                 if (this.saving) {
                     this.queue.push(function() {
-                        this.checkForm(true)
+                        this.checkForm()
                     }.bind(this));
                     return;
                 }
 
+                this.lastSerializedValue = data;
                 this.saving = true;
                 var $spinners = this.spinners().removeClass('hidden');
                 var $statusIcons = this.statusIcons().removeClass('invisible checkmark-icon alert-icon').addClass('hidden');
@@ -13979,6 +14372,8 @@ Craft.DraftEditor = Garnish.Base.extend(
             sourceId: null,
             siteId: null,
             isLive: false,
+            siteStatuses: null,
+            enabledGlobally: null,
             cpEditUrl: null,
             draftId: null,
             revisionId: null,
@@ -15043,7 +15438,6 @@ Craft.ElevatedSessionManager = Garnish.Base.extend(
                 else {
                     this.showPasswordError();
                 }
-
             }, this));
         },
 
@@ -15193,7 +15587,7 @@ Craft.EntryIndex = Craft.BaseElementIndex.extend(
                         ) {
                             href = this._getSectionTriggerHref(section);
                             label = (this.settings.context === 'index' ? section.name : Craft.t('app', 'New {section} entry', {section: section.name}));
-                            menuHtml += '<li><a ' + href + '">' + Craft.escapeHtml(label) + '</a></li>';
+                            menuHtml += '<li><a ' + href + '>' + Craft.escapeHtml(label) + '</a></li>';
                         }
                     }
 
@@ -16005,6 +16399,7 @@ Craft.FieldToggle = Garnish.Base.extend(
 
         findTargets: function() {
             if (this.type === 'select') {
+                var toggleVal = this.getToggleVal();
                 this._$target = $(this.normalizeTargetSelector(this.targetPrefix + this.getToggleVal()));
             }
             else {
@@ -16024,7 +16419,7 @@ Craft.FieldToggle = Garnish.Base.extend(
             }
             else {
                 var postVal = Garnish.getInputPostVal(this.$toggle);
-                return postVal === null ? null : postVal.replace(/[\[\]\\]+/g, '-');
+                return postVal === null ? null : postVal.replace(/[\[\]\\\/]+/g, '-');
             }
         },
 
@@ -16446,7 +16841,6 @@ Craft.Grid = Garnish.Base.extend(
 
                     // If every item is at position 0, then let them lay out au naturel
                     if (this.isSimpleLayout()) {
-
                         this.$container.height('auto');
                         this.$items.css({
                             position: 'relative',
@@ -16682,7 +17076,6 @@ Craft.Grid.LayoutGenerator = Garnish.Base.extend(
 
             delete this._;
         }
-
     });
 
 /** global: Craft */
@@ -16788,7 +17181,6 @@ Craft.ImageUpload = Garnish.Base.extend(
                     }, this));
                 }
             }, this));
-
         },
 
         refreshImage: function(response) {
@@ -16907,7 +17299,8 @@ Craft.LightSwitch = Garnish.Base.extend(
         $innerContainer: null,
         $input: null,
         small: false,
-        on: null,
+        on: false,
+        indeterminate: false,
         dragger: null,
 
         dragStartMargin: null,
@@ -16936,10 +17329,11 @@ Craft.LightSwitch = Garnish.Base.extend(
             }
 
             this.on = this.$outerContainer.hasClass('on');
+            this.indeterminate = this.$outerContainer.hasClass('indeterminate');
 
             this.$outerContainer.attr({
-                'role': 'checkbox',
-                'aria-checked': (this.on ? 'true' : 'false')
+                role: 'checkbox',
+                'aria-checked': this.on ? 'true' : (this.indeterminate ? 'mixed' : 'false'),
             });
 
             this.addListener(this.$outerContainer, 'mousedown', '_onMouseDown');
@@ -16954,43 +17348,73 @@ Craft.LightSwitch = Garnish.Base.extend(
             });
         },
 
-        turnOn: function() {
-            this.$outerContainer.addClass('dragging');
+        turnOn: function(muteEvent) {
+            var changed = !this.on;
 
+            this.on = true;
+            this.indeterminate = false;
+
+            this.$outerContainer.addClass('dragging');
             var animateCss = {};
             animateCss['margin-' + Craft.left] = 0;
             this.$innerContainer.velocity('stop').velocity(animateCss, Craft.LightSwitch.animationDuration, $.proxy(this, '_onSettle'));
 
             this.$input.val(this.settings.value);
             this.$outerContainer.addClass('on');
+            this.$outerContainer.removeClass('indeterminate');
             this.$outerContainer.attr('aria-checked', 'true');
 
-            if (this.on !== (this.on = true)) {
+            if (changed && muteEvent !== true) {
                 this.onChange();
             }
         },
 
-        turnOff: function() {
-            this.$outerContainer.addClass('dragging');
+        turnOff: function(muteEvent) {
+            var changed = this.on || this.indeterminate;
 
+            this.on = false;
+            this.indeterminate = false;
+
+            this.$outerContainer.addClass('dragging');
             var animateCss = {};
             animateCss['margin-' + Craft.left] = this._getOffMargin();
             this.$innerContainer.velocity('stop').velocity(animateCss, Craft.LightSwitch.animationDuration, $.proxy(this, '_onSettle'));
 
             this.$input.val('');
             this.$outerContainer.removeClass('on');
+            this.$outerContainer.removeClass('indeterminate');
             this.$outerContainer.attr('aria-checked', 'false');
 
-            if (this.on !== (this.on = false)) {
+            if (changed && muteEvent !== true) {
                 this.onChange();
             }
         },
 
-        toggle: function(event) {
-            if (!this.on) {
-                this.turnOn();
+        turnIndeterminate: function(muteEvent) {
+            var changed = !this.indeterminate;
+
+            this.on = false;
+            this.indeterminate = true;
+
+            this.$outerContainer.addClass('dragging');
+            var animateCss = {};
+            animateCss['margin-' + Craft.left] = this._getOffMargin() / 2;
+            this.$innerContainer.velocity('stop').velocity(animateCss, Craft.LightSwitch.animationDuration, $.proxy(this, '_onSettle'));
+
+            this.$input.val(this.settings.indeterminateValue);
+            this.$outerContainer.removeClass('on');
+            this.$outerContainer.addClass('indeterminate');
+            this.$outerContainer.attr('aria-checked', 'mixed');
+
+            if (changed && muteEvent !== true) {
+                this.onChange();
             }
-            else {
+        },
+
+        toggle: function() {
+            if (this.indeterminate || !this.on) {
+                this.turnOn();
+            } else {
                 this.turnOff();
             }
         },
@@ -17077,11 +17501,11 @@ Craft.LightSwitch = Garnish.Base.extend(
 
         _onDragStop: function() {
             var margin = this._getMargin();
+            console.log(margin);
 
             if (margin > (this._getOffMargin() / 2)) {
                 this.turnOn();
-            }
-            else {
+            } else {
                 this.turnOff();
             }
         },
@@ -17096,13 +17520,13 @@ Craft.LightSwitch = Garnish.Base.extend(
         },
 
         _getOffMargin: function() {
-            return (this.small ? -9 : -11);
+            return (this.small ? -10 : -12);
         }
-
     }, {
         animationDuration: 100,
         defaults: {
             value: '1',
+            indeterminateValue: '-',
             onChange: $.noop
         }
     });
@@ -17729,16 +18153,18 @@ Craft.Preview = Garnish.Base.extend(
         $targetBtn: null,
         $targetMenu: null,
         $iframe: null,
+        iframeLoaded: false,
         $tempInput: null,
         $fieldPlaceholder: null,
 
         isActive: false,
         activeTarget: 0,
+        draftId: null,
         url: null,
         fields: null,
 
-        scrollLeft: 0,
-        scrollTop: 0,
+        scrollLeft: null,
+        scrollTop: null,
 
         dragger: null,
         dragStartEditorWidth: null,
@@ -17884,7 +18310,6 @@ Craft.Preview = Garnish.Base.extend(
                         $clone: $clone
                     });
                 }
-
             }
 
             this._slideInOnIframeLoad = true;
@@ -17903,6 +18328,9 @@ Craft.Preview = Garnish.Base.extend(
             this.$targetMenu.find('a.sel').removeClass('sel');
             this.$targetMenu.find('a').eq(i).addClass('sel');
             this.updateIframe(true);
+            this.trigger('switchTarget', {
+                target: this.draftEditor.settings.previewTargets[i],
+            });
         },
 
         handleWindowResize: function() {
@@ -18002,22 +18430,42 @@ Craft.Preview = Garnish.Base.extend(
             // Ignore non-boolean resetScroll values
             resetScroll = resetScroll === true;
 
-            var url = this.draftEditor.settings.previewTargets[this.activeTarget].url;
+            var target = this.draftEditor.settings.previewTargets[this.activeTarget];
+            var refresh = !!(
+                this.draftId !== (this.draftId = this.draftEditor.settings.draftId) ||
+                !this.$iframe ||
+                resetScroll ||
+                typeof target.refresh === 'undefined' ||
+                target.refresh
+            );
 
-            this.draftEditor.getTokenizedPreviewUrl(url, 'x-craft-live-preview').then(function(url) {
+            this.trigger('beforeUpdateIframe', {
+                target: target,
+                resetScroll: resetScroll,
+                refresh: refresh,
+            });
+
+            // If this is an existing preview target, make sure it wants to be refreshed automatically
+            if (!refresh) {
+                return;
+            }
+
+            this.draftEditor.getTokenizedPreviewUrl(target.url, 'x-craft-live-preview').then(function(url) {
                 // Capture the current scroll position?
                 var sameHost;
                 if (resetScroll) {
-                    this.scrollLeft = 0;
-                    this.scrolllTop = 0;
+                    this.scrollLeft = null;
+                    this.scrolllTop = null;
                 } else {
                     sameHost = Craft.isSameHost(url);
-                    if (sameHost && this.$iframe && this.$iframe[0].contentWindow) {
+                    if (sameHost && this.iframeLoaded && this.$iframe && this.$iframe[0].contentWindow) {
                         var $doc = $(this.$iframe[0].contentWindow.document);
                         this.scrollLeft = $doc.scrollLeft();
                         this.scrollTop = $doc.scrollTop();
                     }
                 }
+
+                this.iframeLoaded = false;
 
                 var $iframe = $('<iframe/>', {
                     'class': 'lp-preview',
@@ -18025,13 +18473,14 @@ Craft.Preview = Garnish.Base.extend(
                     src: url,
                 });
 
-                if (!resetScroll && sameHost) {
-                    $iframe.on('load', function() {
+                $iframe.on('load', function() {
+                    this.iframeLoaded = true;
+                    if (!resetScroll && sameHost && this.scrollLeft !== null) {
                         var $doc = $($iframe[0].contentWindow.document);
                         $doc.scrollLeft(this.scrollLeft);
                         $doc.scrollTop(this.scrollTop);
-                    }.bind(this));
-                }
+                    }
+                }.bind(this));
 
                 if (this.$iframe) {
                     this.$iframe.replaceWith($iframe);
@@ -18046,7 +18495,10 @@ Craft.Preview = Garnish.Base.extend(
         },
 
         afterUpdateIframe: function() {
-            this.trigger('afterUpdateIframe');
+            this.trigger('afterUpdateIframe', {
+                target: this.draftEditor.settings.previewTargets[this.activeTarget],
+                $iframe: this.$iframe,
+            });
 
             if (this._slideInOnIframeLoad) {
                 this.slideIn();
@@ -18133,7 +18585,7 @@ Craft.PreviewFileModal = Garnish.Modal.extend(
             Craft.PreviewFileModal.openInstance = this;
             this.elementSelect = elementSelect;
 
-            this.$container = $('<div id="previewmodal" class="modal loading"/>').appendTo(Garnish.$bod);
+            this.$container = $('<div class="modal previewmodal loading"/>').appendTo(Garnish.$bod);
 
             this.base(this.$container, $.extend({
                 resizable: true
@@ -18224,17 +18676,24 @@ Craft.PreviewFileModal = Garnish.Modal.extend(
             this.requestId++;
 
             Craft.postActionRequest('assets/preview-file', {assetId: assetId, requestId: this.requestId}, function(response, textStatus) {
+                this.$container.removeClass('loading');
+                this.$spinner.remove();
+                this.loaded = true;
+
                 if (textStatus === 'success') {
                     if (response.success) {
                         if (response.requestId != this.requestId) {
                             return;
                         }
 
-                        this.$container.removeClass('loading');
-                        this.$spinner.remove();
+                        if (!response.previewHtml) {
+                            this.$container.addClass('zilch');
+                            this.$container.append($('<p/>', {text: Craft.t('app', 'No preview available.')}));
+                            return;
+                        }
 
-                        this.loaded = true;
-                        this.$container.append(response.modalHtml);
+                        this.$container.removeClass('zilch');
+                        this.$container.append(response.previewHtml);
                         Craft.appendHeadHtml(response.headHtml);
                         Craft.appendFootHtml(response.footHtml);
                     } else {
@@ -18385,7 +18844,6 @@ Craft.ProgressBar = Garnish.Base.extend(
  * File Manager.
  */
 Craft.PromptHandler = Garnish.Base.extend({
-
     modal: null,
     $modalContainerDiv: null,
     $prompt: null,
@@ -18536,7 +18994,6 @@ Craft.PromptHandler = Garnish.Base.extend({
         this.modal.show();
         this.modal.removeListener(Garnish.Modal.$shade, 'click');
         this.addListener(Garnish.Modal.$shade, 'click', '_cancelPrompt');
-
     },
 
     /**
@@ -18564,7 +19021,6 @@ Craft.PromptHandler = Garnish.Base.extend({
 /** global: Garnish */
 
 Craft.SlideRuleInput = Garnish.Base.extend({
-
     $container: null,
     $options: null,
     $selectedOption: null,
@@ -18652,7 +19108,6 @@ Craft.SlideRuleInput = Garnish.Base.extend({
         if (value < this.slideMin) {
             value = this.slideMin;
             left = this.valueToPosition(value);
-
         }
         else if (value > this.slideMax) {
             value = this.slideMax;
@@ -18855,7 +19310,6 @@ Craft.Structure = Garnish.Base.extend(
                 if (this.settings.storageKey) {
                     Craft.setLocalStorage(this.settings.storageKey, this.state);
                 }
-
             }, this));
         },
 
@@ -19092,7 +19546,6 @@ Craft.StructureDrag = Garnish.Drag.extend(
                             // Position the insertion after the closest target
                             this.$insertion.insertAfter(this._.$closestTargetLi);
                         }
-
                     }
                     else {
                         if (!this.maxLevels || this.maxLevels >= (this._.closestTargetLevel + this.draggeeLevel)) {
@@ -19282,7 +19735,6 @@ Craft.StructureDrag = Garnish.Drag.extend(
                         if (textStatus === 'success') {
                             Craft.cp.displayNotice(Craft.t('app', 'New order saved.'));
                         }
-
                     });
                 }
             }
@@ -19315,16 +19767,11 @@ Craft.StructureDrag = Garnish.Drag.extend(
                 this.setLevel($($childLis[i]), level + 1);
             }
         }
-
     });
 
 /** global: Craft */
 /** global: Garnish */
 Craft.StructureTableSorter = Garnish.DragSort.extend({
-
-        // Properties
-        // =========================================================================
-
         tableView: null,
         structureId: null,
         maxLevels: null,
@@ -19350,9 +19797,6 @@ Craft.StructureTableSorter = Garnish.DragSort.extend({
         _targetLevelBounds: null,
 
         _positionChanged: null,
-
-        // Public methods
-        // =========================================================================
 
         /**
          * Constructor
@@ -19677,9 +20121,6 @@ Craft.StructureTableSorter = Garnish.DragSort.extend({
             this.base();
         },
 
-        // Private methods
-        // =========================================================================
-
         /**
          * Returns the min and max levels that the draggee could occupy between
          * two given rows, or false if it’s not going to work out.
@@ -19890,7 +20331,6 @@ Craft.StructureTableSorter = Garnish.DragSort.extend({
                     // Create its toggle
                     $('<span class="toggle expanded" title="' + Craft.t('app', 'Show/hide children') + '"></span>')
                         .insertAfter(this._updateAncestors._$ancestor.find('> td .move:first'));
-
                 }
             }
 
@@ -19901,10 +20341,6 @@ Craft.StructureTableSorter = Garnish.DragSort.extend({
             delete this._updateAncestors._newAncestors;
         }
     },
-
-// Static Properties
-// =============================================================================
-
     {
         HELPER_MARGIN: 0,
         LEVEL_INDENT: 44,
@@ -20200,7 +20636,6 @@ Craft.TableElementIndexView = Craft.BaseElementIndexView.extend(
                             // Is there room to load more right now?
                             this.maybeLoadMore();
                         }
-
                     }, this));
                 }
             }
@@ -20441,7 +20876,6 @@ Craft.TagSelectInput = Craft.BaseElementSelectInput.extend(
 
                         this.searchMenu.show();
                     }
-
                 }, this));
             }
             else {
@@ -20838,11 +21272,13 @@ Craft.ui =
 
         createLightswitch: function(config) {
             var value = config.value || '1';
+            var indeterminateValue = config.indeterminateValue || '-';
 
             var $container = $('<div/>', {
                 'class': 'lightswitch',
                 tabindex: '0',
                 'data-value': value,
+                'data-indeterminate-value': indeterminateValue,
                 id: config.id,
                 'aria-labelledby': config.labelId,
                 'data-target': config.toggle,
@@ -20851,6 +21287,8 @@ Craft.ui =
 
             if (config.on) {
                 $container.addClass('on');
+            } else if (config.indeterminate) {
+                $container.addClass('indeterminate');
             }
 
             if (config.small) {
@@ -20863,9 +21301,7 @@ Craft.ui =
 
             $(
                 '<div class="lightswitch-container">' +
-                '<div class="label on"></div>' +
                 '<div class="handle"></div>' +
-                '<div class="label off"></div>' +
                 '</div>'
             ).appendTo($container);
 
@@ -20873,7 +21309,7 @@ Craft.ui =
                 $('<input/>', {
                     type: 'hidden',
                     name: config.name,
-                    value: (config.on ? value : ''),
+                    value: config.on ? value : (config.indeterminate ? indeterminateValue : ''),
                     disabled: config.disabled
                 }).appendTo($container);
             }
@@ -20887,7 +21323,8 @@ Craft.ui =
         },
 
         createLightswitchField: function(config) {
-            return this.createField(this.createLightswitch(config), config);
+            return this.createField(this.createLightswitch(config), config)
+                .addClass('lightswitch-field');
         },
 
         createColorInput: function(config) {
@@ -20979,6 +21416,7 @@ Craft.ui =
             var now = new Date();
             var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
             config = $.extend({
+                class: '',
                 options: [
                     'today',
                     'thisWeek',
@@ -20986,26 +21424,32 @@ Craft.ui =
                     'thisYear',
                     'past7Days',
                     'past30Days',
+                    'past90Days',
                     'pastYear',
                 ],
                 onChange: $.noop,
+                selected: null,
+                startDate:null,
+                endDate: null,
             }, config);
 
             var $menu = $('<div/>', {'class': 'menu'});
             var $ul = $('<ul/>', {'class': 'padded'}).appendTo($menu);
             var menu = new Garnish.Menu($menu);
+            var $allOption = $('<a/>')
+                .addClass('sel')
+                .text(Craft.t('app', 'All'))
+                .data('handle', 'all');
 
             $('<li/>')
-                .append($('<a/>', {
-                    'class': 'sel',
-                    text: Craft.t('app', 'All'),
-                }))
+                .append($allOption)
                 .appendTo($ul);
 
             var option;
+            var selectedOption;
             for (var i = 0; i < config.options.length; i++) {
-                option = config.options[i];
-                switch (option) {
+                var handle = config.options[i];
+                switch (handle) {
                     case 'today':
                         option = {
                             label: Craft.t('app', 'Today'),
@@ -21052,6 +21496,13 @@ Craft.ui =
                             endDate: today,
                         };
                         break;
+                    case 'past90Days':
+                        option = {
+                            label: Craft.t('app', 'Past {num} days', {num: 90}),
+                            startDate: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 90),
+                            endDate: today,
+                        };
+                        break;
                     case 'pastYear':
                         option = {
                             label: Craft.t('app', 'Past year'),
@@ -21061,13 +21512,20 @@ Craft.ui =
                         break;
                 }
 
-                $('<li/>')
-                    .append($('<a/>', {text: option.label})
-                        .data('startDate', option.startDate)
-                        .data('endDate', option.endDate)
-                        .data('startTime', option.startDate ? option.startDate.getTime() : null)
-                        .data('endTime', option.endDate ? option.endDate.getTime() : null))
-                    .appendTo($ul);
+                var $li = $('<li/>');
+                var $a = $('<a/>', {text: option.label})
+                    .data('handle', handle)
+                    .data('startDate', option.startDate)
+                    .data('endDate', option.endDate)
+                    .data('startTime', option.startDate ? option.startDate.getTime() : null)
+                    .data('endTime', option.endDate ? option.endDate.getTime() : null);
+
+                if (config.selected && handle == config.selected) {
+                    selectedOption = $a[0];
+                }
+
+                $li.append($a);
+                $li.appendTo($ul);
             }
 
             $('<hr/>').appendTo($menu);
@@ -21082,7 +21540,7 @@ Craft.ui =
                 if (ev.keyCode === Garnish.ESC_KEY && $(this).data('datepicker').dpDiv.is(':visible')) {
                     ev.stopPropagation();
                 }
-            })
+            });
 
             // prevent clicks in the datepicker divs from closing the menu
             $startDate.data('datepicker').dpDiv.on('mousedown', function(ev) {
@@ -21104,7 +21562,7 @@ Craft.ui =
                     $startDate.datepicker('setDate', $option.data('startDate'));
                     $endDate.datepicker('setDate', $option.data('endDate'));
 
-                    config.onChange($option.data('startDate') || null, $option.data('endDate') || null);
+                    config.onChange($option.data('startDate') || null, $option.data('endDate') || null, $option.data('handle'));
                 }
             });
 
@@ -21127,6 +21585,7 @@ Craft.ui =
                     ) {
                         menu.selectOption($option[0]);
                         foundOption = true;
+                        config.onChange(null, null, $option.data('handle'));
                         break;
                     }
                 }
@@ -21146,7 +21605,7 @@ Craft.ui =
                     }
                     menu.setPositionRelativeToAnchor();
 
-                    config.onChange(startDate, endDate);
+                    config.onChange(startDate, endDate, 'custom');
                 }
             });
 
@@ -21155,10 +21614,32 @@ Craft.ui =
                 $endDate.datepicker('hide');
             });
 
-            var $btn = $('<div class="btn menubtn" data-icon="date"/>')
+            var btnClasses = 'btn menubtn';
+            if (config.class) {
+                btnClasses = btnClasses + ' ' + config.class;
+            }
+
+            var $btn = $('<div class="'+btnClasses+'" data-icon="date"/>')
                 .text(Craft.t('app', 'All'));
 
             new Garnish.MenuBtn($btn, menu);
+
+            if (selectedOption) {
+                menu.selectOption(selectedOption);
+            }
+
+            if (config.startDate) {
+                $startDate.datepicker('setDate', config.startDate);
+            }
+
+            if (config.endDate) {
+                $endDate.datepicker('setDate', config.endDate);
+            }
+
+            if (config.startDate || config.endDate) {
+                $dateInputs.trigger('change');
+            }
+
             return $btn;
         },
 
@@ -21408,7 +21889,6 @@ Craft.Uploader = Garnish.Base.extend(
                 var file = data.files[0];
                 var pass = true;
                 if (validateExtension) {
-
                     var matches = file.name.match(/\.([a-z0-4_]+)$/i);
                     var fileExtension = matches[1];
                     if ($.inArray(fileExtension.toLowerCase(), this._extensionList) === -1) {
@@ -21438,7 +21918,6 @@ Craft.Uploader = Garnish.Base.extend(
                     this._validFileCounter = 0;
                     this.processErrorMessages();
                 }
-
             }, this));
 
             return true;
@@ -21531,10 +22010,6 @@ Craft.Uploader = Garnish.Base.extend(
             this.base();
         }
     },
-
-// Static Properties
-// =============================================================================
-
     {
         defaults: {
             dropZone: null,

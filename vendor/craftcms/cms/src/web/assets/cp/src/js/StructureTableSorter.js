@@ -1,10 +1,6 @@
 /** global: Craft */
 /** global: Garnish */
 Craft.StructureTableSorter = Garnish.DragSort.extend({
-
-        // Properties
-        // =========================================================================
-
         tableView: null,
         structureId: null,
         maxLevels: null,
@@ -30,9 +26,6 @@ Craft.StructureTableSorter = Garnish.DragSort.extend({
         _targetLevelBounds: null,
 
         _positionChanged: null,
-
-        // Public methods
-        // =========================================================================
 
         /**
          * Constructor
@@ -357,9 +350,6 @@ Craft.StructureTableSorter = Garnish.DragSort.extend({
             this.base();
         },
 
-        // Private methods
-        // =========================================================================
-
         /**
          * Returns the min and max levels that the draggee could occupy between
          * two given rows, or false if it’s not going to work out.
@@ -570,7 +560,6 @@ Craft.StructureTableSorter = Garnish.DragSort.extend({
                     // Create its toggle
                     $('<span class="toggle expanded" title="' + Craft.t('app', 'Show/hide children') + '"></span>')
                         .insertAfter(this._updateAncestors._$ancestor.find('> td .move:first'));
-
                 }
             }
 
@@ -581,10 +570,6 @@ Craft.StructureTableSorter = Garnish.DragSort.extend({
             delete this._updateAncestors._newAncestors;
         }
     },
-
-// Static Properties
-// =============================================================================
-
     {
         HELPER_MARGIN: 0,
         LEVEL_INDENT: 44,

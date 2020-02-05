@@ -71,9 +71,6 @@ use yii\helpers\Markdown;
  */
 class Extension extends AbstractExtension implements GlobalsInterface
 {
-    // Properties
-    // =========================================================================
-
     /**
      * @var View|null
      */
@@ -83,9 +80,6 @@ class Extension extends AbstractExtension implements GlobalsInterface
      * @var TwigEnvironment|null
      */
     protected $environment;
-
-    // Public Methods
-    // =========================================================================
 
     /**
      * Constructor
@@ -213,6 +207,7 @@ class Extension extends AbstractExtension implements GlobalsInterface
             new TwigFilter('attr', [$this, 'attrFilter'], ['is_safe' => ['html']]),
             new TwigFilter('camel', [$this, 'camelFilter']),
             new TwigFilter('column', [ArrayHelper::class, 'getColumn']),
+            new TwigFilter('contains', [ArrayHelper::class, 'contains']),
             new TwigFilter('currency', [$formatter, 'asCurrency']),
             new TwigFilter('date', [$this, 'dateFilter'], ['needs_environment' => true]),
             new TwigFilter('datetime', [$this, 'datetimeFilter'], ['needs_environment' => true]),
@@ -901,6 +896,7 @@ class Extension extends AbstractExtension implements GlobalsInterface
             new TwigFunction('ceil', 'ceil'),
             new TwigFunction('className', 'get_class'),
             new TwigFunction('clone', [$this, 'cloneFunction']),
+            new TwigFunction('combine', 'array_combine'),
             new TwigFunction('create', [Craft::class, 'createObject']),
             new TwigFunction('expression', [$this, 'expressionFunction']),
             new TwigFunction('floor', 'floor'),

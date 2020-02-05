@@ -51,9 +51,6 @@ use yii\base\InvalidConfigException;
  */
 class Matrix extends Field implements EagerLoadingFieldInterface, GqlInlineFragmentFieldInterface
 {
-    // Constants
-    // =========================================================================
-
     /**
      * @event SectionEvent The event that is triggered before a section is saved.
      * @since 3.1.27
@@ -64,9 +61,6 @@ class Matrix extends Field implements EagerLoadingFieldInterface, GqlInlineFragm
     const PROPAGATION_METHOD_SITE_GROUP = 'siteGroup';
     const PROPAGATION_METHOD_LANGUAGE = 'language';
     const PROPAGATION_METHOD_ALL = 'all';
-
-    // Static
-    // =========================================================================
 
     /**
      * @inheritdoc
@@ -94,9 +88,6 @@ class Matrix extends Field implements EagerLoadingFieldInterface, GqlInlineFragm
     {
         return MatrixBlockQuery::class;
     }
-
-    // Properties
-    // =========================================================================
 
     /**
      * @var int|null Min blocks
@@ -143,14 +134,6 @@ class Matrix extends Field implements EagerLoadingFieldInterface, GqlInlineFragm
      * @var MatrixBlockType[]|null The block types' fields
      */
     private $_blockTypeFields;
-
-    /**
-     * @var string The old propagation method for this field
-     */
-    private $_oldPropagationMethod;
-
-    // Public Methods
-    // =========================================================================
 
     /**
      * @inheritdoc
@@ -654,25 +637,22 @@ class Matrix extends Field implements EagerLoadingFieldInterface, GqlInlineFragm
 
         Craft::$app->getView()->registerAssetBundle(MatrixAsset::class);
 
-        Craft::$app->getView()->registerJs('new Craft.MatrixInput(' .
+        $js = 'var matrixInput = new Craft.MatrixInput(' .
             '"' . Craft::$app->getView()->namespaceInputId($id) . '", ' .
             Json::encode($blockTypeInfo, JSON_UNESCAPED_UNICODE) . ', ' .
             '"' . Craft::$app->getView()->namespaceInputName($this->handle) . '", ' .
             ($this->maxBlocks ?: 'null') .
-            ');');
+            ');';
 
-        // Safe to set the default blocks?
+        // Safe to create the default blocks?
         if ($createDefaultBlocks) {
-            $blockType = $blockTypes[0];
-
+            $blockTypeJs = Json::encode($blockTypes[0]->handle);
             for ($i = count($value); $i < $this->minBlocks; $i++) {
-                $block = new MatrixBlock();
-                $block->fieldId = $this->id;
-                $block->typeId = $blockType->id;
-                $block->siteId = $element->siteId ?? Craft::$app->getSites()->getCurrentSite()->id;
-                $value[] = $block;
+                $js .= "\nmatrixInput.addBlock({$blockTypeJs});";
             }
         }
+
+        Craft::$app->getView()->registerJs($js);
 
         return Craft::$app->getView()->renderTemplate('_components/fieldtypes/Matrix/input',
             [
@@ -723,8 +703,10 @@ class Matrix extends Field implements EagerLoadingFieldInterface, GqlInlineFragm
         /** @var Element $element */
         /** @var MatrixBlockQuery $value */
         $value = $element->getFieldValue($this->handle);
+        $blocks = $value->all();
+        $allBlocksValidate = true;
 
-        foreach ($value->all() as $i => $block) {
+        foreach ($blocks as $i => $block) {
             /** @var MatrixBlock $block */
             if ($block->enabled && $element->getScenario() === Element::SCENARIO_LIVE) {
                 $block->setScenario(Element::SCENARIO_LIVE);
@@ -732,7 +714,13 @@ class Matrix extends Field implements EagerLoadingFieldInterface, GqlInlineFragm
 
             if (!$block->validate()) {
                 $element->addModelErrors($block, "{$this->handle}[{$i}]");
+                $allBlocksValidate = false;
             }
+        }
+
+        if (!$allBlocksValidate) {
+            // Just in case the blocks weren't already cached
+            $value->setCachedResult($blocks);
         }
     }
 
@@ -895,12 +883,11 @@ class Matrix extends Field implements EagerLoadingFieldInterface, GqlInlineFragm
             }
         }
 
-        // Set the content table name and remember the original propagation method
+        // Set the content table name
         if ($this->id) {
             $oldField = $fieldsService->getFieldById($this->id);
             if ($oldField instanceof self) {
                 $this->contentTable = $oldField->contentTable;
-                $this->_oldPropagationMethod = $oldField->propagationMethod;
             }
         }
 
@@ -917,13 +904,15 @@ class Matrix extends Field implements EagerLoadingFieldInterface, GqlInlineFragm
         Craft::$app->getMatrix()->saveSettings($this, false);
 
         // If the propagation method just changed, resave all the Matrix blocks
-        if ($this->_oldPropagationMethod && $this->propagationMethod !== $this->_oldPropagationMethod) {
-            Craft::$app->getQueue()->push(new ApplyMatrixPropagationMethod([
-                'fieldId' => $this->id,
-                'oldPropagationMethod' => $this->_oldPropagationMethod,
-                'newPropagationMethod' => $this->propagationMethod,
-            ]));
-            $this->_oldPropagationMethod = null;
+        if ($this->oldSettings !== null) {
+            $oldPropagationMethod = $this->oldSettings['propagationMethod'] ?? self::PROPAGATION_METHOD_ALL;
+            if ($this->propagationMethod !== $oldPropagationMethod) {
+                Craft::$app->getQueue()->push(new ApplyMatrixPropagationMethod([
+                    'fieldId' => $this->id,
+                    'oldPropagationMethod' => $oldPropagationMethod,
+                    'newPropagationMethod' => $this->propagationMethod,
+                ]));
+            }
         }
 
         parent::afterSave($isNew);
@@ -1017,9 +1006,6 @@ class Matrix extends Field implements EagerLoadingFieldInterface, GqlInlineFragm
 
         parent::afterElementRestore($element);
     }
-
-    // Private Methods
-    // =========================================================================
 
     /**
      * Returns info about each field type for the configurator.

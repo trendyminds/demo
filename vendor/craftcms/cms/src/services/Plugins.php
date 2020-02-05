@@ -39,9 +39,6 @@ use yii\web\HttpException;
  */
 class Plugins extends Component
 {
-    // Constants
-    // =========================================================================
-
     /**
      * @event \yii\base\Event The event that is triggered before any plugins have been loaded
      */
@@ -102,9 +99,6 @@ class Plugins extends Component
 
     const CONFIG_PLUGINS_KEY = 'plugins';
 
-    // Properties
-    // =========================================================================
-
     /**
      * @var array[] Custom plugin configurations.
      * @since 3.4.0
@@ -150,9 +144,6 @@ class Plugins extends Component
      * @var string[] Cache for [[getPluginHandleByClass()]]
      */
     private $_classPluginHandles = [];
-
-    // Public Methods
-    // =========================================================================
 
     /**
      * @inheritdoc
@@ -242,7 +233,6 @@ class Plugins extends Component
             if ($plugin !== null) {
                 // If we're not updating, check if the plugin's version number changed, but not its schema version.
                 if (!Craft::$app->getIsInMaintenanceMode() && $this->hasPluginVersionNumberChanged($plugin) && !$this->doesPluginRequireDatabaseUpdate($plugin)) {
-
                     /** @var Plugin $plugin */
                     if (
                         $plugin->minVersionRequired &&
@@ -711,7 +701,7 @@ class Plugins extends Component
 
         // Update the plugin's settings in the project config
         $pluginSettings = $plugin->getSettings();
-        $pluginSettings = $pluginSettings ? ProjectConfigHelper::packAssociativeArray($pluginSettings->toArray()) : [];
+        $pluginSettings = $pluginSettings ? ProjectConfigHelper::packAssociativeArrays($pluginSettings->toArray()) : [];
         Craft::$app->getProjectConfig()->set(self::CONFIG_PLUGINS_KEY . '.' . $plugin->handle . '.settings', $pluginSettings, "Change settings for plugin “{$plugin->handle}”");
 
         $plugin->afterSaveSettings();
@@ -1232,9 +1222,6 @@ class Plugins extends Component
         }
     }
 
-    // Private Methods
-    // =========================================================================
-
     /**
      * Returns a Query object prepped for retrieving sections.
      *
@@ -1382,7 +1369,7 @@ class Plugins extends Component
         $data = $projectConfig->get($configKey) ?? $projectConfig->get($configKey, true);
 
         if (!empty($data['settings'])) {
-            $data['settings'] = ProjectConfigHelper::unpackAssociativeArray($data['settings']);
+            $data['settings'] = ProjectConfigHelper::unpackAssociativeArrays($data['settings']);
         }
 
         if (!$data) {

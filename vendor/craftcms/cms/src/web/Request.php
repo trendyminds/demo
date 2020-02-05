@@ -40,22 +40,13 @@ use yii\web\NotFoundHttpException;
  */
 class Request extends \yii\web\Request
 {
-    // Traits
-    // =========================================================================
-
     use RequestTrait;
-
-    // Constants
-    // =========================================================================
 
     const CP_PATH_LOGIN = 'login';
     const CP_PATH_LOGOUT = 'logout';
     const CP_PATH_SET_PASSWORD = 'set-password';
     const CP_PATH_VERIFY_EMAIL = 'verify-email';
     const CP_PATH_UPDATE = 'update';
-
-    // Properties
-    // =========================================================================
 
     /**
      * @inheritdoc
@@ -165,9 +156,6 @@ class Request extends \yii\web\Request
      * @see getToken()
      */
     public $_token;
-
-    // Public Methods
-    // =========================================================================
 
     /**
      * @inheritdoc
@@ -1039,9 +1027,6 @@ class Request extends \yii\web\Request
         return [$route, $params + $this->getQueryParams()];
     }
 
-    // Protected Methods
-    // =========================================================================
-
     /**
      * Generates an unmasked random token used to perform CSRF validation.
      *
@@ -1130,9 +1115,6 @@ class Request extends \yii\web\Request
         return Craft::$app->getSecurity()->compareString($expectedToken, $token);
     }
 
-    // Private Methods
-    // =========================================================================
-
     /**
      * Returns the segments of a given path.
      *
@@ -1207,19 +1189,19 @@ class Request extends \yii\web\Request
             }
 
             // It's a possible match!
-            $scores[$i] = 8 + strlen($parsedPath);
+            $scores[$i] = 1000 + strlen($parsedPath) * 100;
 
             $parsedScheme = !empty($parsed['scheme']) ? strtolower($parsed['scheme']) : $scheme;
             $parsedPort = $parsed['port'] ?? ($parsedScheme === 'https' ? 443 : 80);
 
             // Do the ports match?
             if ($parsedPort == $port) {
-                $scores[$i] += 4;
+                $scores[$i] += 100;
             }
 
             // Do the schemes match?
             if ($parsedScheme === $scheme) {
-                $scores[$i] += 2;
+                $scores[$i] += 10;
             }
 
             // One Pence point if it's the primary site in case we need a tiebreaker

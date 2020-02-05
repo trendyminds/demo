@@ -37,16 +37,10 @@ use yii\web\BadRequestHttpException;
  */
 class InstallController extends Controller
 {
-    // Properties
-    // =========================================================================
-
     /**
      * @inheritdoc
      */
     protected $allowAnonymous = self::ALLOW_ANONYMOUS_LIVE | self::ALLOW_ANONYMOUS_OFFLINE;
-
-    // Public Methods
-    // =========================================================================
 
     /**
      * @inheritdoc
@@ -272,7 +266,7 @@ class InstallController extends Controller
 
         // Try to save the site URL to a DEFAULT_SITE_URL environment variable
         // if it's not already set to an alias or environment variable
-        if ($siteUrl[0] !== '@' && $siteUrl[0] !== '$') {
+        if ($siteUrl[0] !== '@' && $siteUrl[0] !== '$' && !App::isEphemeral()) {
             try {
                 $configService->setDotEnvVar('DEFAULT_SITE_URL', $siteUrl);
                 $siteUrl = '$DEFAULT_SITE_URL';
@@ -310,9 +304,6 @@ class InstallController extends Controller
         return $this->asJson(['success' => $success]);
     }
 
-    // Private Methods
-    // =========================================================================
-
     /**
      * Returns whether it looks like we have control over the DB config settings.
      *
@@ -320,7 +311,12 @@ class InstallController extends Controller
      */
     private function _canControlDbConfig(): bool
     {
-        // If the .env file doesn't exist, we definitely can't do anyting about it
+        // If this is ephemeral storage, then we can't be writing to a .env file
+        if (App::isEphemeral()) {
+            return false;
+        }
+
+        // If the .env file doesn't exist, we definitely can't do anything about it
         if (!file_exists(Craft::$app->getConfig()->getDotEnvPath())) {
             return false;
         }

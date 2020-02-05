@@ -45,16 +45,10 @@ use yii\web\JsonParser;
  */
 class App
 {
-    // Properties
-    // =========================================================================
-
     /**
      * @var bool
      */
     private static $_iconv;
-
-    // Public Methods
-    // =========================================================================
 
     /**
      * Returns an array of all known Craft editions’ IDs.
@@ -347,6 +341,17 @@ class App
         return $trace;
     }
 
+    /**
+     * Returns whether Craft is running on an environment with ephemeral storage.
+     *
+     * @return bool
+     * @since 3.4.0
+     */
+    public static function isEphemeral(): bool
+    {
+        return defined('CRAFT_EPHEMERAL') && CRAFT_EPHEMERAL === true;
+    }
+
     // App component configs
     // -------------------------------------------------------------------------
 
@@ -472,6 +477,7 @@ class App
             'from' => [
                 Craft::parseEnv($settings->fromEmail) => Craft::parseEnv($settings->fromName)
             ],
+            'replyTo' => Craft::parseEnv($settings->replyToEmail),
             'template' => Craft::parseEnv($settings->template),
             'transport' => $adapter->defineTransport(),
         ];
@@ -527,7 +533,8 @@ class App
         }
 
         // Only log errors and warnings, unless Craft is running in Dev Mode or it's being installed/updated
-        if (!YII_DEBUG && Craft::$app->getIsInstalled() && !Craft::$app->getUpdates()->getIsCraftDbMigrationNeeded()) {
+        // (Explicitly check GeneralConfig::$devMode here, because YII_DEBUG is always `1` for console requests.)
+        if (!$generalConfig->devMode && Craft::$app->getIsInstalled() && !Craft::$app->getUpdates()->getIsCraftDbMigrationNeeded()) {
             $target['levels'] = Logger::LEVEL_ERROR | Logger::LEVEL_WARNING;
         }
 

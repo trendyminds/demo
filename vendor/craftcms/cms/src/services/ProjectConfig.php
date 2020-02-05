@@ -40,9 +40,6 @@ use yii\web\ServerErrorHttpException;
  */
 class ProjectConfig extends Component
 {
-    // Constants
-    // =========================================================================
-
     // Cache settings
     // -------------------------------------------------------------------------
 
@@ -163,9 +160,6 @@ class ProjectConfig extends Component
      */
     const EVENT_REBUILD = 'rebuild';
 
-    // Properties
-    // =========================================================================
-
     /**
      * @var int The maximum number of project.yaml deltas to store in storage/config-backups/
      * @since 3.4.0
@@ -196,16 +190,16 @@ class ProjectConfig extends Component
     public $forceUpdate = false;
 
     /**
-     * @var array Currently memopized config.
-     * @since 3.4.0
-     */
-    private $_memoizedConfig = [];
-
-    /**
      * @var array Keeps track of memoization dependencies
      * @since 3.4.0
      */
     private $_memoizationDependencies = [];
+
+    /**
+     * @var array Map of paths being processed and their original loaded values.
+     * @since 3.4.0
+     */
+    private $_oldValuesByPath = [];
 
     /**
      * @var array A list of already parsed change paths
@@ -286,9 +280,51 @@ class ProjectConfig extends Component
      */
     private $_appliedChanges = [];
 
+    /**
+     * @var array Current config as stored in database.
+     */
+    private $_storedConfig;
 
-    // Public methods
-    // =========================================================================
+    /**
+     * @var array The currently-loaded config, possibly with pending changes
+     * that will be stored in the database & project.yaml at the end of the request
+     */
+    private $_loadedConfig;
+
+    /**
+     * @var array[] Config change handlers
+     * @see registerChangeEventHandler()
+     * @see handleChangeEvent()
+     * @since 3.4.0
+     */
+    private $_changeEventHandlers = [];
+
+    /**
+     * @var array[] The specificity of change event handlers.
+     * @see registerChangeEventHandler()
+     * @see handleChangeEvent()
+     * @see _sortChangeEventHandlers()
+     * @since 3.4.0
+     */
+    private $_changeEventHandlerSpecificity = [];
+
+    /**
+     * @var array[] The registration order of change event handlers.
+     * @see registerChangeEventHandler()
+     * @see handleChangeEvent()
+     * @see _sortChangeEventHandlers()
+     * @since 3.4.0
+     */
+    private $_changeEventHandlerRegistrationOrder = [];
+
+    /**
+     * @var bool[] Whether the change event handlers have been sorted.
+     * @see registerChangeEventHandler()
+     * @see handleChangeEvent()
+     * @see _sortChangeEventHandlers()
+     * @since 3.4.0
+     */
+    private $_sortedChangeEventHandlers = [];
 
     /**
      * @inheritdoc
@@ -310,6 +346,10 @@ class ProjectConfig extends Component
     {
         Craft::$app->on(Application::EVENT_AFTER_REQUEST, [$this, 'saveModifiedConfigData'], null, false);
 
+        $this->on(self::EVENT_ADD_ITEM, [$this, 'handleChangeEvent']);
+        $this->on(self::EVENT_UPDATE_ITEM, [$this, 'handleChangeEvent']);
+        $this->on(self::EVENT_REMOVE_ITEM, [$this, 'handleChangeEvent']);
+
         parent::init();
     }
 
@@ -320,7 +360,10 @@ class ProjectConfig extends Component
      */
     public function reset()
     {
-        $this->_memoizedConfig = [];
+        $this->_storedConfig = null;
+        $this->_loadedConfig = null;
+        $this->_parsedChanges = [];
+        $this->_parsedConfigs = [];
         $this->_configFileList = [];
         $this->_modifiedYamlFiles = [];
         $this->_configMap = null;
@@ -350,15 +393,15 @@ class ProjectConfig extends Component
     {
         if ($getFromYaml) {
             $source = $this->_changesBeingApplied ?? $this->_getConfigurationFromYaml();
-
-            if ($path === null) {
-                return $source;
-            }
-
-            return $this->_traverseDataArray($source, $path);
         } else {
-            return $this->_getInternalConfigValue($path);
+            $source = $this->_getLoadedConfig();
         }
+
+        if ($path === null) {
+            return $source;
+        }
+
+        return $this->_traverseDataArray($source, $path);
     }
 
     /**
@@ -400,6 +443,17 @@ class ProjectConfig extends Component
             }
         }
 
+        // Mark this path (and its parent paths) as being processed, and store their current values
+        // Ensure that new data is processed for this path and all its parent paths
+        $tok = strtok($path, '.');
+        $thisPath = '';
+        while ($tok !== false) {
+            $thisPath .= ($thisPath !== '' ? '.' : '') . $tok;
+            $this->_oldValuesByPath[$thisPath] = $this->get($thisPath);
+            unset($this->_parsedChanges[$thisPath]);
+            $tok = strtok('.');
+        }
+
         $targetFilePath = null;
 
         if ($this->_useConfigFile()) {
@@ -421,11 +475,7 @@ class ProjectConfig extends Component
 
         $this->_traverseDataArray($config, $path, $value, $value === null);
         $this->_saveConfig($config, $targetFilePath);
-
-        unset($this->_parsedChanges[$path]);
-
         $this->processConfigChanges($path, true, $message);
-        $this->_invalidateMemoizedData($path);
     }
 
     /**
@@ -449,7 +499,7 @@ class ProjectConfig extends Component
      */
     public function regenerateYamlFromConfig()
     {
-        $loadedConfig = $this->_getInternalConfigValue();
+        $loadedConfig = $this->_getLoadedConfig();
         $baseFile = Craft::$app->getPath()->getProjectConfigFilePath();
         $this->_saveConfig($loadedConfig, $baseFile);
         $this->updateParsedConfigTimesAfterRequest();
@@ -511,7 +561,7 @@ class ProjectConfig extends Component
     }
 
     /**
-     * Returns whether `project.yaml` has any pending changes that need to be applied to the project config.
+     * Returns whether a given path has pending changes that need to be applied to the loaded project config.
      *
      * @param string|null $path A specific config path that should be checked for pending changes.
      * If this is null, then `true` will be returned if there are *any* pending changes in `project.yaml.`.
@@ -519,6 +569,11 @@ class ProjectConfig extends Component
      */
     public function areChangesPending(string $path = null): bool
     {
+        // If the path is currently being processed, return true
+        if (array_key_exists($path, $this->_oldValuesByPath)) {
+            return true;
+        }
+
         // TODO remove after next breakpoint
         if (version_compare(Craft::$app->getInfo()->schemaVersion, '3.4.4', '<')) {
             return false;
@@ -535,7 +590,8 @@ class ProjectConfig extends Component
         }
 
         if ($path !== null) {
-            $oldValue = $this->_getInternalConfigValue($path);
+            $storedConfig = $this->_getStoredConfig();
+            $oldValue = $this->_traverseDataArray($storedConfig, $path);
             $newValue = $this->get($path, true);
             return Json::encode($oldValue) !== Json::encode($newValue);
         }
@@ -559,47 +615,67 @@ class ProjectConfig extends Component
      * @param string $path The config item path
      * @param bool $triggerUpdate is set to true and no changes are detected, an update event will be triggered, anyway.
      * @param string|null $message The message describing changes, if modifications are made.
+     * @param bool $force Whether the config change should be processed regardless of previous records
      */
-    public function processConfigChanges(string $path, bool $triggerUpdate = false, $message = null)
+    public function processConfigChanges(string $path, bool $triggerUpdate = false, $message = null, bool $force = false)
     {
-        if (!empty($this->_parsedChanges[$path])) {
+        if (!$force && !empty($this->_parsedChanges[$path])) {
             return;
         }
 
         $this->_parsedChanges[$path] = true;
 
-        $oldValue = $this->get($path);
-        $newValue = $this->get($path, true);
+        $storedConfig = $this->_getStoredConfig();
+        $oldValue = $this->_traverseDataArray($storedConfig, $path);
 
-        $event = new ConfigEvent(compact('path', 'oldValue', 'newValue'));
-
-        if ($newValue === null) {
-            // Fire a 'removeItem' event
-            if (!$this->muteEvents) {
-                $this->trigger(self::EVENT_REMOVE_ITEM, $event);
+        // If this path is currently being processed, use its original pre-processed value as the "old" value
+        foreach ($this->_oldValuesByPath as $thisPath => $thisOldValue) {
+            if (strpos("$path.", "$thisPath.") === 0) {
+                if ($path === $thisPath) {
+                    $oldValue = $thisOldValue;
+                } else if (is_array($thisOldValue)) {
+                    $oldValue = $this->_traverseDataArray($thisOldValue, substr($path, strlen($thisPath) + 1));
+                } else {
+                    $oldValue = null;
+                }
+                break;
             }
-        } else if ($oldValue === null) {
-            // Fire an 'addItem' event
-            if (!$this->muteEvents) {
-                $this->trigger(self::EVENT_ADD_ITEM, $event);
-            }
-        } else if ($this->forceUpdate ||
-            $triggerUpdate ||
-            Json::encode($oldValue) !== Json::encode($newValue)
-        ) {
-            // Fire an 'updateItem' event
-            if (!$this->muteEvents) {
-                $this->trigger(self::EVENT_UPDATE_ITEM, $event);
-            }
-        } else {
-            return;
         }
 
-        // Memoize the new config data
-        $this->_updateInternalConfig($path, $newValue, $message);
+        $newValue = $this->get($path, true);
+        $valueChanged = $triggerUpdate || $this->forceUpdate || Json::encode($oldValue) !== Json::encode($newValue);
 
-        $this->updateStoredConfigAfterRequest();
-        $this->updateParsedConfigTimesAfterRequest();
+        if ($valueChanged && !$this->muteEvents) {
+            $event = new ConfigEvent(compact('path', 'oldValue', 'newValue'));
+            if ($newValue === null && $oldValue !== null) {
+                // Fire a 'removeItem' event
+                $this->trigger(self::EVENT_REMOVE_ITEM, $event);
+            } else if ($oldValue === null && $newValue !== null) {
+                // Fire an 'addItem' event
+                $this->trigger(self::EVENT_ADD_ITEM, $event);
+            } else {
+                // Fire an 'updateItem' event
+                $this->trigger(self::EVENT_UPDATE_ITEM, $event);
+            }
+        }
+
+        // Mark this path, and any parent paths, as parsed
+        $tok = strtok($path, '.');
+        $thisPath = '';
+        while ($tok !== false) {
+            $thisPath .= ($thisPath !== '' ? '.' : '') . $tok;
+            unset($this->_oldValuesByPath[$thisPath]);
+            $this->_parsedChanges[$thisPath] = true;
+            $tok = strtok('.');
+        }
+
+        if ($valueChanged) {
+            // Memoize the new config data
+            $this->_updateInternalConfig($path, $oldValue, $newValue, $message);
+
+            $this->updateStoredConfigAfterRequest();
+            $this->updateParsedConfigTimesAfterRequest();
+        }
     }
 
     /**
@@ -655,13 +731,37 @@ class ProjectConfig extends Component
                 'changes' => []
             ];
 
+            $db = Craft::$app->getDb();
             foreach ($this->_appliedChanges as $changeSet) {
                 // Allow modification of the array being looped over.
                 $currentSet = $changeSet;
 
+                if (!empty($changeSet['removed'])) {
+                    $db->createCommand()
+                        ->delete(Table::PROJECTCONFIG, ['path' => array_keys($changeSet['removed'])])
+                        ->execute();
+                }
+
                 if (!empty($changeSet['added'])) {
+                    $isMysql = $db->getIsMysql();
+                    $batch = [];
+                    $pathsToInsert = [];
+                    $additionalCleanupPaths = [];
+
                     foreach ($currentSet['added'] as $key => $value) {
-                        if (array_key_exists($key, $currentSet['removed'])) {
+                        // Prepare for storage
+                        $dbValue = Json::encode($value);
+                        if (!mb_check_encoding($value, 'UTF-8') || ($isMysql && StringHelper::containsMb4($dbValue))) {
+                            $dbValue = 'base64:' . base64_encode($dbValue);
+                        }
+                        $batch[] = [$key, $dbValue];
+                        $pathsToInsert[] = $key;
+
+                        // Delete parent key, as it cannot hold a value AND be an array at the same time
+                        $additionalCleanupPaths[pathinfo($key, PATHINFO_FILENAME)] = true;
+
+                        // Prepare for delta
+                        if (!empty($currentSet['removed']) && array_key_exists($key, $currentSet['removed'])) {
                             if (is_string($changeSet['removed'][$key])) {
                                 $changeSet['removed'][$key] = StringHelper::decdec($changeSet['removed'][$key]);
                             }
@@ -686,6 +786,19 @@ class ProjectConfig extends Component
                                 unset($changeSet['removed'][$key], $changeSet['added'][$key]);
                             }
                         }
+                    }
+
+                    // Store in the DB
+                    if (!empty($batch)) {
+                        $db->createCommand()
+                            ->delete(Table::PROJECTCONFIG, ['path' => $pathsToInsert])
+                            ->execute();
+                        $db->createCommand()
+                            ->delete(Table::PROJECTCONFIG, ['path' => array_keys($additionalCleanupPaths)])
+                            ->execute();
+                        $db->createCommand()
+                            ->batchInsert(Table::PROJECTCONFIG, ['path', 'value'], $batch, false)
+                            ->execute();
                     }
                 }
 
@@ -929,23 +1042,71 @@ class ProjectConfig extends Component
      */
     public function registerChangeEventHandler(string $event, string $path, $handler, $data = null)
     {
+        $specificity = substr_count($path, '.');
         $pattern = '/^(?P<path>' . preg_quote($path, '/') . ')(?P<extra>\..+)?$/';
         $pattern = str_replace('\\{uid\\}', '(' . self::UID_PATTERN . ')', $pattern);
 
-        $this->on($event, function(ConfigEvent $event) use ($pattern, $handler) {
+        $this->_changeEventHandlers[$event][] = [$pattern, $handler, $data];
+        $this->_changeEventHandlerSpecificity[$event][] = $specificity;
+        $this->_changeEventHandlerRegistrationOrder[$event][] = count($this->_changeEventHandlers[$event]);
+        unset($this->_sortedChangeEventHandlers[$event]);
+    }
+
+    /**
+     * Handles a config change event.
+     *
+     * @param ConfigEvent $event
+     * @since 3.4.0
+     */
+    public function handleChangeEvent(ConfigEvent $event)
+    {
+        if (empty($this->_changeEventHandlers[$event->name])) {
+            return;
+        }
+
+        // Make sure the event handlers are sorted from least-to-most specific
+        $this->_sortChangeEventHandlers($event->name);
+
+        foreach ($this->_changeEventHandlers[$event->name] as list($pattern, $handler, $data)) {
             if (preg_match($pattern, $event->path, $matches)) {
                 // Is this a nested path?
                 if (isset($matches['extra'])) {
                     $this->processConfigChanges($matches['path']);
-                    return;
+                    continue;
                 }
 
                 // Chop off [0] (full match) and ['path'] & [1] (requested path)
                 $event->tokenMatches = array_values(array_slice($matches, 3));
+
+                // Set the event data
+                $event->data = $data;
+
                 $handler($event);
+
                 $event->tokenMatches = null;
+                $event->data = null;
             }
-        }, $data);
+        }
+    }
+
+    /**
+     * Ensures that the config change event handlers are sorted by least-to-most specific.
+     *
+     * @param string $event The event name
+     * @since 3.4.0
+     */
+    private function _sortChangeEventHandlers(string $event)
+    {
+        if (isset($this->_sortedChangeEventHandlers[$event])) {
+            return;
+        }
+
+        array_multisort(
+            $this->_changeEventHandlerSpecificity[$event], SORT_ASC, SORT_NUMERIC,
+            $this->_changeEventHandlerRegistrationOrder[$event], SORT_ASC, SORT_NUMERIC,
+            $this->_changeEventHandlers[$event]);
+
+        $this->_sortedChangeEventHandlers[$event] = true;
     }
 
     /**
@@ -992,9 +1153,6 @@ class ProjectConfig extends Component
         $this->muteEvents = false;
     }
 
-    // Private methods
-    // =========================================================================
-
     /**
      * Applies changes from a configuration array.
      *
@@ -1011,21 +1169,21 @@ class ProjectConfig extends Component
         if (!empty($changes['removedItems'])) {
             Craft::info('Parsing ' . count($changes['removedItems']) . ' removed configuration items', __METHOD__);
             foreach ($changes['removedItems'] as $itemPath) {
-                $this->processConfigChanges($itemPath);
+                $this->processConfigChanges($itemPath, false, null, true);
             }
         }
 
         if (!empty($changes['changedItems'])) {
             Craft::info('Parsing ' . count($changes['changedItems']) . ' changed configuration items', __METHOD__);
             foreach ($changes['changedItems'] as $itemPath) {
-                $this->processConfigChanges($itemPath);
+                $this->processConfigChanges($itemPath, false, null, true);
             }
         }
 
         if (!empty($changes['newItems'])) {
             Craft::info('Parsing ' . count($changes['newItems']) . ' new configuration items', __METHOD__);
             foreach ($changes['newItems'] as $itemPath) {
-                $this->processConfigChanges($itemPath);
+                $this->processConfigChanges($itemPath, false, null, true);
             }
         }
 
@@ -1183,7 +1341,7 @@ class ProjectConfig extends Component
             $configData = $this->_getConfigurationFromYaml() ?? [];
         }
 
-        $currentConfig = $this->_getInternalConfigValue() ?? [];
+        $currentConfig = $this->_getLoadedConfig() ?? [];
 
         $flatConfig = [];
         $flatCurrent = [];
@@ -1421,128 +1579,35 @@ class ProjectConfig extends Component
     }
 
     /**
-     * Return the value of a path stored in the internal project config.
+     * Returns the loaded config.
      *
-     * @param string|null $path path where the data is located.
-     * @return mixed|null the value stored in internal config
+     * @return array
      */
-    private function _getInternalConfigValue(string $path = null)
+    private function _getLoadedConfig(): array
     {
-        if (Craft::$app->getIsInstalled() && version_compare(Craft::$app->getInfo()->schemaVersion, '3.1.2', '<')) {
-            return null;
+        // _loadedConfig will be set if we've made any changes in this request
+        if ($this->_loadedConfig !== null) {
+            return $this->_loadedConfig;
         }
 
-        if (Craft::$app->getIsInstalled() && version_compare(Craft::$app->getInfo()->schemaVersion, '3.4.4', '<')) {
-            if (empty($this->_memoizedConfig)) {
-                $config = (new Query())
-                    ->select(['config'])
-                    ->from([Table::INFO])
-                    ->scalar();
-
-                if (!$config) {
-                    $this->_memoizedConfig = [];
-                } else {
-                    // Try to decode it in case it contains any 4+ byte characters
-                    $config = StringHelper::decdec($config);
-                    if (strpos($config, '{') === 0) {
-                        $this->_memoizedConfig = Json::decode($config);
-                    } else {
-                        $this->_memoizedConfig = unserialize($config, ['allowed_classes' => false]);
-                    }
-                }
-            }
-
-            if ($path === null) {
-                return $this->_memoizedConfig;
-            }
-
-            return $this->_traverseDataArray($this->_memoizedConfig, $path);
-        }
-
-        if ($path === null) {
-            $path = self::CONFIG_ALL_KEY;
-        }
-
-        return $this->_getInternalConfigData($path);
+        // Otherwise just return whatever's in the DB
+        return $this->_getStoredConfig();
     }
 
     /**
-     * Get the memoized value. If not found by exact path, keeps looking further up
-     * the memoized tree.
+     * Returns the stored config.
      *
-     * @param string $path
-     * @return mixed|null
+     * @return array
      */
-    private function _getMemoizedValue(string $path)
+    private function _getStoredConfig(): array
     {
-        if (array_key_exists($path, $this->_memoizedConfig)) {
-            return $this->_memoizedConfig[$path];
+        if ($this->_storedConfig === null) {
+            $this->_storedConfig = $this->_loadInternalConfigData();
         }
 
-        // Got nothing for you, buddy
-        if ($path == self::CONFIG_ALL_KEY) {
-            return null;
-        }
-
-        if (StringHelper::countSubstrings($path, '.') > 0) {
-            $subPath = pathinfo($path, PATHINFO_EXTENSION);
-            $path = pathinfo($path, PATHINFO_FILENAME);
-        } else {
-            $subPath = $path;
-            $path = self::CONFIG_ALL_KEY;
-        }
-
-        $parentMemoizedValue = $this->_getMemoizedValue($path);
-
-        if (empty($parentMemoizedValue[$subPath])) {
-            return null;
-        }
-
-        return $parentMemoizedValue[$subPath];
+        return $this->_storedConfig;
     }
 
-    /**
-     * Invalidate the memoized data for a given, along with any dependencies.
-     *
-     * @param string|null $path
-     */
-    private function _invalidateMemoizedData(string $path = null)
-    {
-        unset($this->_memoizedConfig[$path]);
-
-        if (array_key_exists($path, $this->_memoizationDependencies)) {
-
-            $dependencies = $this->_memoizationDependencies[$path];
-
-            foreach ($dependencies as $index => $dependency) {
-                // Prevent circular loops
-                unset($this->_memoizationDependencies[$path][$index]);
-                $this->_invalidateMemoizedData($dependency);
-            }
-            if (empty($this->_memoizationDependencies[$path])) {
-                unset($this->_memoizationDependencies[$path]);
-            }
-        }
-    }
-
-    /**
-     * Get the internal config value by checking if it's memoized. If it's not, then load it
-     * from the internal storage instead.
-     *
-     * @param $path
-     * @return mixed|null
-     */
-    private function _getInternalConfigData($path)
-    {
-        if ($data = $this->_getMemoizedValue($path)) {
-            return $data;
-        }
-
-        $data = $this->_loadInternalConfigData($path);
-        $this->_memoize($path, $data);
-
-        return $data;
-    }
 
     /**
      * Create a Query object ready to retrieve internal project config values.
@@ -1554,29 +1619,6 @@ class ProjectConfig extends Component
         return (new Query())
             ->select(['path', 'value'])
             ->from([Table::PROJECTCONFIG]);
-    }
-
-    /**
-     * Memoize a value for a given path and register all the dependency paths.
-     *
-     * @param string $path
-     * @param mixed $data
-     */
-    private function _memoize(string $path, $data)
-    {
-        $this->_memoizedConfig[$path] = $data;
-        $dependencyPath = $path;
-
-        while (StringHelper::countSubstrings($dependencyPath, '.') > 0) {
-            $dependencyPath = pathinfo($dependencyPath, PATHINFO_FILENAME);
-            $this->_memoizationDependencies[$dependencyPath][] = $path;
-            $this->_memoizationDependencies[$path][] = $dependencyPath;
-        }
-
-        $this->_memoizationDependencies[$dependencyPath][] = $path;
-        $this->_memoizationDependencies[$path][] = $dependencyPath;
-
-        unset($this->_memoizedConfig[self::CONFIG_ALL_KEY]);
     }
 
     /**
@@ -1600,74 +1642,47 @@ class ProjectConfig extends Component
      * is null, it will be removed instead.
      *
      * @param string $path
+     * @param mixed|null $oldValue
      * @param mixed|null $newValue
      * @param string|null $message message describing the changes made.
-     * @throws \Throwable
      */
-    private function _updateInternalConfig(string $path, $newValue, string $message = null)
+    private function _updateInternalConfig(string $path, $oldValue, $newValue, string $message = null)
     {
-        $transaction = Craft::$app->getDb()->beginTransaction();
+        $currentLoadedConfig = $this->_getLoadedConfig();
+        $this->_traverseDataArray($currentLoadedConfig, $path, $newValue, $newValue === null);
+        $this->_loadedConfig = $currentLoadedConfig;
+
         $appliedChanges = [];
 
-        try {
-            $appliedChanges['removed'] = $this->_createProjectConfigQuery()
-                ->where(['like', 'path', $path . '.%', false])
-                ->orWhere(['path' => $path])
-                ->pairs();
+        $modified = Json::encode($oldValue) !== Json::encode($newValue);
 
-            $db = Craft::$app->getDb();
-            $db->createCommand()
-                ->delete(Table::PROJECTCONFIG, ['like', 'path', $path . '.%', false])
-                ->execute();
-            $db->createCommand()
-                ->delete(Table::PROJECTCONFIG, ['path' => $path])
-                ->execute();
-
-            if ($newValue) {
-                if (!is_scalar($newValue)) {
-                    $flatData = [];
-                    ProjectConfigHelper::flattenConfigArray($newValue, $path, $flatData);
-                } else {
-                    $flatData = [$path => $newValue];
-                }
-
-                $appliedChanges['added'] = $flatData;
-
-                $batch = [];
-                $isMysql = $db->getIsMysql();
-
-                foreach ($flatData as $key => $value) {
-                    $value = Json::encode($value);
-
-                    if (
-                        !mb_check_encoding($value, 'UTF-8') ||
-                        ($isMysql && StringHelper::containsMb4($value))
-                    ) {
-                        $value = 'base64:' . base64_encode($value);
-                    }
-
-                    $batch[] = [$key, $value];
-                }
-
-                if (!empty($batch)) {
-                    $db->createCommand()
-                        ->batchInsert(Table::PROJECTCONFIG, ['path', 'value'], $batch, false)
-                        ->execute();
-                }
+        if ($newValue !== null && ($oldValue === null || $modified)) {
+            if (!is_scalar($newValue)) {
+                $flatData = [];
+                ProjectConfigHelper::flattenConfigArray($newValue, $path, $flatData);
+            } else {
+                $flatData = [$path => $newValue];
             }
 
-            if ($message) {
-                $appliedChanges['message'] = $message;
-            }
-
-            $this->_appliedChanges[] = $appliedChanges;
-            $transaction->commit();
-        } catch (\Throwable $e) {
-            $transaction->rollBack();
-            throw $e;
+            $appliedChanges['added'] = $flatData;
         }
 
-        $this->_invalidateMemoizedData($path);
+        if ($oldValue && ($newValue === null || $modified)) {
+            if (!is_scalar($oldValue)) {
+                $flatData = [];
+                ProjectConfigHelper::flattenConfigArray($oldValue, $path, $flatData);
+            } else {
+                $flatData = [$path => $oldValue];
+            }
+
+            $appliedChanges['removed'] = $flatData;
+        }
+
+        if ($message) {
+            $appliedChanges['message'] = $message;
+        }
+
+        $this->_appliedChanges[] = $appliedChanges;
     }
 
     /**
@@ -1677,56 +1692,59 @@ class ProjectConfig extends Component
      * @param array $current
      * @return mixed
      */
-    private function _loadInternalConfigData(string $path)
+    private function _loadInternalConfigData()
     {
+        $data = [];
+
         if (!Craft::$app->getIsInstalled()) {
-            return null;
+            return $data;
         }
 
-        if ($path == self::CONFIG_ALL_KEY) {
-            $rows = $this->_createProjectConfigQuery()->all();
-        } else {
-            $rows = $this->_createProjectConfigQuery()
-                ->where(['path' => $path])
-                ->orWhere(['like', 'path', $path . '.%', false])
-                ->all();
+        if (Craft::$app->getIsInstalled() && version_compare(Craft::$app->getInfo()->schemaVersion, '3.1.1', '<')) {
+            return $data;
         }
 
-        $data = $rows ? [] : null;
+        if (Craft::$app->getIsInstalled() && version_compare(Craft::$app->getInfo()->schemaVersion, '3.4.4', '<')) {
+            $config = (new Query())
+                ->select(['config'])
+                ->from([Table::INFO])
+                ->scalar();
 
-        // For all rows returned
-        foreach ($rows as $row) {
-            $relativePath = StringHelper::removeLeft($row['path'], $path);
-
-            // Get rid of a preceding dot, if any.
-            $relativePath = StringHelper::removeLeft($relativePath, '.');
-
-            $row['value'] = Json::decode(StringHelper::decdec($row['value']));
-
-            // If relative path is empty, this is a direct value
-            if (empty($relativePath)) {
-                $data = $row['value'];
-                break;
+            if ($config) {
+                // Try to decode it in case it contains any 4+ byte characters
+                $config = StringHelper::decdec($config);
+                if (strpos($config, '{') === 0) {
+                    $data = Json::decode($config);
+                } else {
+                    $data = unserialize($config, ['allowed_classes' => false]);
+                }
             }
 
-            // Get ready to iterate the relative path
-            $pathParts = explode('.', $relativePath);
-            $current =& $data;
-            $count = count($pathParts);
+            return $data;
+        }
 
-            for ($i = 0; $i < $count; $i++) {
-                $pathPart = $pathParts[$i];
+        $rows = $this->_createProjectConfigQuery()->orderBy('path')->pairs();
 
-                // If this is the final part, then this is the value
-                if ($i == $count - 1) {
-                    $current[$pathPart] = $row['value'];
-                    // otherwise keep building the array
-                } else if (!array_key_exists($pathPart, $current)) {
-                    $current[$pathPart] = [];
+        $current = &$data;
+
+        foreach ($rows as $path => $value) {
+            $current = &$data;
+            $segments = explode('.', $path);
+
+            foreach ($segments as $segment) {
+                // If we're still traversing, enforce array to avoid errors.
+                if (!is_array($current)) {
+                    $current = [];
                 }
 
-                $current =& $current[$pathPart];
+                if (!array_key_exists($segment, $current)) {
+                    $current[$segment] = [];
+                }
+
+                $current = &$current[$segment];
             }
+
+            $current = Json::decode(StringHelper::decdec($value));
         }
 
         if (is_array($data)) {
@@ -1735,9 +1753,6 @@ class ProjectConfig extends Component
 
         return $data;
     }
-
-    // Private methods for rebuilding project config
-    // =========================================================================
 
     /**
      * Return project config array.
@@ -2012,7 +2027,7 @@ class ProjectConfig extends Component
             $fieldRow['settings'] = Json::decodeIfJson($fieldRow['settings']);
 
             if (is_array($fieldRow['settings'])) {
-                $fieldRow['settings'] = ProjectConfigHelper::packAssociativeArray($fieldRow['settings']);
+                $fieldRow['settings'] = ProjectConfigHelper::packAssociativeArrays($fieldRow['settings']);
             }
 
             $fieldInstance = $fieldService->getFieldById($fieldRow['id']);
@@ -2100,7 +2115,7 @@ class ProjectConfig extends Component
             $matrixSubfieldRow['settings'] = Json::decodeIfJson($matrixSubfieldRow['settings']);
 
             if (is_array($matrixSubfieldRow['settings'])) {
-                $matrixSubfieldRow['settings'] = ProjectConfigHelper::packAssociativeArray($matrixSubfieldRow['settings']);
+                $matrixSubfieldRow['settings'] = ProjectConfigHelper::packAssociativeArrays($matrixSubfieldRow['settings']);
             }
 
             $fieldInstance = $fieldService->getFieldById($matrixSubfieldRow['id']);

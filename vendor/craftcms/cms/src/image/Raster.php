@@ -34,9 +34,6 @@ use yii\base\ErrorException;
  */
 class Raster extends Image
 {
-    // Properties
-    // =========================================================================
-
     /**
      * @var string|null
      */
@@ -76,9 +73,6 @@ class Raster extends Image
      * @var Font|null
      */
     private $_font;
-
-    // Public Methods
-    // =========================================================================
 
     /**
      * @inheritdoc
@@ -209,7 +203,6 @@ class Raster extends Image
         $height = $y2 - $y1;
 
         if ($this->_isAnimatedGif) {
-
             // Create a new image instance to avoid object references messing up our dimensions.
             $newSize = new Box($width, $height);
             $startingPoint = new Point($x1, $y1);
@@ -304,7 +297,6 @@ class Raster extends Image
 
             // Now crop.
             if ($newWidth - $targetWidth > 0) {
-
                 switch ($horizontalPosition) {
                     case 'left':
                         $x1 = 0;
@@ -361,7 +353,6 @@ class Raster extends Image
         $this->normalizeDimensions($targetWidth, $targetHeight);
 
         if ($this->_isAnimatedGif) {
-
             // Create a new image instance to avoid object references messing up our dimensions.
             $newSize = new Box($targetWidth, $targetHeight);
             $gif = $this->_instance->create($newSize);
@@ -601,7 +592,6 @@ class Raster extends Image
      */
     public function writeText(string $text, int $x, int $y, int $angle = 0)
     {
-
         if ($this->_font === null) {
             throw new ImageException(Craft::t('app', 'No font properties have been set. Call ImageHelper::setFontProperties() first.'));
         }
@@ -628,9 +618,6 @@ class Raster extends Image
 
         return $this;
     }
-
-    // Private Methods
-    // =========================================================================
 
     /**
      * @param string $tempFileName

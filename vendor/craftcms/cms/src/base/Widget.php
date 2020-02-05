@@ -17,13 +17,7 @@ use Craft;
  */
 abstract class Widget extends SavableComponent implements WidgetInterface
 {
-    // Traits
-    // =========================================================================
-
     use WidgetTrait;
-
-    // Static
-    // =========================================================================
 
     /**
      * @inheritdoc
@@ -70,9 +64,6 @@ abstract class Widget extends SavableComponent implements WidgetInterface
         return null;
     }
 
-    // Public Methods
-    // =========================================================================
-
     /**
      * @inheritdoc
      */
@@ -95,6 +86,14 @@ abstract class Widget extends SavableComponent implements WidgetInterface
     {
         // Default to the widget's display name
         return static::displayName();
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function getSubtitle()
+    {
+        return null;
     }
 
     /**

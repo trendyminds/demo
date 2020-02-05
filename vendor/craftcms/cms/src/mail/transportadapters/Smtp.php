@@ -18,9 +18,6 @@ use craft\behaviors\EnvAttributeParserBehavior;
  */
 class Smtp extends BaseTransportAdapter
 {
-    // Static
-    // =========================================================================
-
     /**
      * @inheritdoc
      */
@@ -28,9 +25,6 @@ class Smtp extends BaseTransportAdapter
     {
         return 'SMTP';
     }
-
-    // Properties
-    // =========================================================================
 
     /**
      * @var string|null The host that should be used
@@ -67,25 +61,22 @@ class Smtp extends BaseTransportAdapter
      */
     public $timeout = 10;
 
-    // Public Methods
-    // =========================================================================
-
     /**
      * @inheritdoc
      */
     public function behaviors()
     {
-        return [
-            'parser' => [
-                'class' => EnvAttributeParserBehavior::class,
-                'attributes' => [
-                    'host',
-                    'port',
-                    'username',
-                    'password',
-                ],
+        $behaviors = parent::behaviors();
+        $behaviors['parser'] = [
+            'class' => EnvAttributeParserBehavior::class,
+            'attributes' => [
+                'host',
+                'port',
+                'username',
+                'password',
             ],
         ];
+        return $behaviors;
     }
 
     /**

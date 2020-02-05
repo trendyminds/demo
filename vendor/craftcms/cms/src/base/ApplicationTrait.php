@@ -133,9 +133,6 @@ use yii\web\ServerErrorHttpException;
  */
 trait ApplicationTrait
 {
-    // Properties
-    // =========================================================================
-
     /**
      * @var string|null Craft’s schema version number.
      */
@@ -201,9 +198,6 @@ trait ApplicationTrait
      * @see saveInfoAfterRequest()
      */
     private $_waitingToSaveInfo = false;
-
-    // Public Methods
-    // =========================================================================
 
     /**
      * Sets the target application language.
@@ -1328,9 +1322,6 @@ trait ApplicationTrait
         return $this->get('volumes');
     }
 
-    // Private Methods
-    // =========================================================================
-
     /**
      * Initializes things that should happen before the main Application::init()
      */
@@ -1569,20 +1560,20 @@ trait ApplicationTrait
             ->onRemove(Globals::CONFIG_GLOBALSETS_KEY . '.{uid}', [$globalsService, 'handleDeletedGlobalSet']);
         Event::on(Fields::class, Fields::EVENT_AFTER_DELETE_FIELD, [$globalsService, 'pruneDeletedField']);
 
-        // Entry Types
-        $sectionsService = $this->getSections();
-        $projectConfigService
-            ->onAdd(Sections::CONFIG_SECTIONS_KEY . '.{uid}.' . Sections::CONFIG_ENTRYTYPES_KEY . '.{uid}', [$sectionsService, 'handleChangedEntryType'])
-            ->onUpdate(Sections::CONFIG_SECTIONS_KEY . '.{uid}.' . Sections::CONFIG_ENTRYTYPES_KEY . '.{uid}', [$sectionsService, 'handleChangedEntryType'])
-            ->onRemove(Sections::CONFIG_SECTIONS_KEY . '.{uid}.' . Sections::CONFIG_ENTRYTYPES_KEY . '.{uid}', [$sectionsService, 'handleDeletedEntryType']);
-        Event::on(Fields::class, Fields::EVENT_AFTER_DELETE_FIELD, [$sectionsService, 'pruneDeletedField']);
-
         // Sections
+        $sectionsService = $this->getSections();
         $projectConfigService
             ->onAdd(Sections::CONFIG_SECTIONS_KEY . '.{uid}', [$sectionsService, 'handleChangedSection'])
             ->onUpdate(Sections::CONFIG_SECTIONS_KEY . '.{uid}', [$sectionsService, 'handleChangedSection'])
             ->onRemove(Sections::CONFIG_SECTIONS_KEY . '.{uid}', [$sectionsService, 'handleDeletedSection']);
         Event::on(Sites::class, Sites::EVENT_AFTER_DELETE_SITE, [$sectionsService, 'pruneDeletedSite']);
+
+        // Entry Types
+        $projectConfigService
+            ->onAdd(Sections::CONFIG_SECTIONS_KEY . '.{uid}.' . Sections::CONFIG_ENTRYTYPES_KEY . '.{uid}', [$sectionsService, 'handleChangedEntryType'])
+            ->onUpdate(Sections::CONFIG_SECTIONS_KEY . '.{uid}.' . Sections::CONFIG_ENTRYTYPES_KEY . '.{uid}', [$sectionsService, 'handleChangedEntryType'])
+            ->onRemove(Sections::CONFIG_SECTIONS_KEY . '.{uid}.' . Sections::CONFIG_ENTRYTYPES_KEY . '.{uid}', [$sectionsService, 'handleDeletedEntryType']);
+        Event::on(Fields::class, Fields::EVENT_AFTER_DELETE_FIELD, [$sectionsService, 'pruneDeletedField']);
 
         // GraphQL Scopes
         $gqlService = $this->getGql();

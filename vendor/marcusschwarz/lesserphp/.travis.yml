@@ -2,9 +2,10 @@ language: php
 
 php:
   - 5.6
+  - 7.1
   - 7.2
   - 7.3
-  - 7.4snapshot
+  - 7.4
 
 sudo: false
 
@@ -12,10 +13,4 @@ install:
   - travis_retry composer install --no-interaction --prefer-source
 
 script:
-  - vendor/bin/phpunit --coverage-text --coverage-clover=${clover=build/logs/clover.xml}
-
-after_success:
-  - composer require satooshi/php-coveralls
-  - vendor/bin/coveralls -v
-  - wget https://scrutinizer-ci.com/ocular.phar
-  - php ocular.phar code-coverage:upload --format=php-clover "$clover"
+  - composer test

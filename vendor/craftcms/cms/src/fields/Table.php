@@ -31,9 +31,6 @@ use yii\validators\EmailValidator;
  */
 class Table extends Field
 {
-    // Static
-    // =========================================================================
-
     /**
      * @inheritdoc
      */
@@ -49,9 +46,6 @@ class Table extends Field
     {
         return 'array|null';
     }
-
-    // Properties
-    // =========================================================================
 
     /**
      * @var string|null Custom add row button label
@@ -89,9 +83,6 @@ class Table extends Field
      */
     public $columnType = Schema::TYPE_TEXT;
 
-    // Public Methods
-    // =========================================================================
-
     /**
      * @inheritdoc
      */
@@ -107,6 +98,12 @@ class Table extends Field
             $this->columns = [];
         } else {
             foreach ($this->columns as $colId => &$column) {
+                // If the column doesn't specify a type, then it probably wasn't meant to be submitted
+                if (!isset($column['type'])) {
+                    unset($this->columns[$colId]);
+                    continue;
+                }
+
                 if ($column['type'] === 'select') {
                     if (!isset($column['options'])) {
                         $column['options'] = [];
@@ -423,9 +420,6 @@ class Table extends Field
         $typeArray = TableRowTypeGenerator::generateTypes($this);
         return Type::listOf(array_pop($typeArray));
     }
-
-    // Private Methods
-    // =========================================================================
 
     /**
      * Normalizes a cell’s value.

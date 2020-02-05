@@ -40,9 +40,6 @@ use yii\base\NotSupportedException;
  */
 abstract class BaseRelationField extends Field implements PreviewableFieldInterface, EagerLoadingFieldInterface
 {
-    // Static
-    // =========================================================================
-
     /**
      * @inheritdoc
      */
@@ -102,9 +99,6 @@ abstract class BaseRelationField extends Field implements PreviewableFieldInterf
      * @see _validateRelatedElement()
      */
     private static $_listeningForRelatedElementSave = false;
-
-    // Properties
-    // =========================================================================
 
     /**
      * @var string|string[]|null The source keys that this field can relate elements from (used if [[allowMultipleSources]] is set to true)
@@ -185,9 +179,6 @@ abstract class BaseRelationField extends Field implements PreviewableFieldInterf
      * @var bool Whether existing relations should be made translatable after the field is saved
      */
     private $_makeExistingRelationsTranslatable = false;
-
-    // Public Methods
-    // =========================================================================
 
     /**
      * @inheritdoc
@@ -625,17 +616,9 @@ JS;
             ->orderBy(['sortOrder' => SORT_ASC])
             ->all();
 
-        // Figure out which target site to use
-        $targetSite = $this->targetSiteId($firstElement);
-
         return [
             'elementType' => static::elementType(),
             'map' => $map,
-            'criteria' => [
-                'siteId' => '*',
-                'unique' => true,
-                'preferSites' => [$targetSite],
-            ],
         ];
     }
 
@@ -818,9 +801,6 @@ JS;
             ]
         ]);
     }
-
-    // Protected Methods
-    // =========================================================================
 
     /**
      * Returns an array of variables that should be passed to the settings template.

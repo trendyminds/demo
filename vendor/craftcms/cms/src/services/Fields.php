@@ -10,8 +10,7 @@ namespace craft\services;
 use Craft;
 use craft\base\Field;
 use craft\base\FieldInterface;
-use craft\behaviors\ContentBehavior;
-use craft\behaviors\ElementQueryBehavior;
+use craft\behaviors\CustomFieldBehavior;
 use craft\db\Query;
 use craft\db\Table;
 use craft\errors\FieldNotFoundException;
@@ -66,9 +65,6 @@ use yii\base\Exception;
  */
 class Fields extends Component
 {
-    // Constants
-    // =========================================================================
-
     /**
      * @event RegisterComponentTypesEvent The event that is triggered when registering field types.
      *
@@ -166,9 +162,6 @@ class Fields extends Component
     const CONFIG_FIELDGROUP_KEY = 'fieldGroups';
     const CONFIG_FIELDS_KEY = 'fields';
 
-    // Properties
-    // =========================================================================
-
     /**
      * @var string
      */
@@ -204,9 +197,6 @@ class Fields extends Component
      * @var array
      */
     private $_savingFields = [];
-
-    // Public Methods
-    // =========================================================================
 
     // Groups
     // -------------------------------------------------------------------------
@@ -671,7 +661,7 @@ class Fields extends Component
      */
     public function doesFieldWithHandleExist(string $handle, string $context = null): bool
     {
-        return ArrayHelper::firstWhere($this->getAllFields($context), 'handle', $handle, true) !== null;
+        return ArrayHelper::contains($this->getAllFields($context), 'handle', $handle, true);
     }
 
     /**
@@ -729,7 +719,7 @@ class Fields extends Component
             'translationMethod' => $field->translationMethod,
             'translationKeyFormat' => $field->translationKeyFormat,
             'type' => get_class($field),
-            'settings' => ProjectConfigHelper::packAssociativeArray($field->getSettings()),
+            'settings' => ProjectConfigHelper::packAssociativeArrays($field->getSettings()),
             'contentColumnType' => $field->getContentColumnType(),
         ];
 
@@ -1417,15 +1407,14 @@ class Fields extends Component
     }
 
     /**
-     * Sets a new field version, so the ContentBehavior and ElementQueryBehavior classes
+     * Sets a new field version, so the CustomFieldBehavior class
      * will get regenerated on the next request.
      */
     public function updateFieldVersion()
     {
-        // Make sure that ContentBehavior and ElementQueryBehavior have already been loaded,
+        // Make sure that CustomFieldBehavior has already been loaded,
         // so the field version change won't be detected until the next request
-        class_exists(ContentBehavior::class);
-        class_exists(ElementQueryBehavior::class);
+        class_exists(CustomFieldBehavior::class);
 
         $info = Craft::$app->getInfo();
         $info->fieldVersion = StringHelper::randomString(12);
@@ -1527,7 +1516,7 @@ class Fields extends Component
             }
 
             if (!empty($data['settings']) && is_array($data['settings'])) {
-                $data['settings'] = ProjectConfigHelper::unpackAssociativeArray($data['settings']);
+                $data['settings'] = ProjectConfigHelper::unpackAssociativeArrays($data['settings']);
             }
 
             $fieldRecord->uid = $fieldUid;
@@ -1557,8 +1546,8 @@ class Fields extends Component
         // Update the field version
         $this->updateFieldVersion();
 
-        // Tell the current ContentBehavior class about the field
-        ContentBehavior::$fieldHandles[$fieldRecord->handle] = true;
+        // Tell the current CustomFieldBehavior class about the field
+        CustomFieldBehavior::$fieldHandles[$fieldRecord->handle] = true;
 
         // For CP save requests, make sure we have all the custom data already saved on the object.
         /** @var Field $field */
@@ -1588,9 +1577,6 @@ class Fields extends Component
             ]));
         }
     }
-
-    // Private Methods
-    // =========================================================================
 
     /**
      * Returns a Query object prepped for retrieving groups.

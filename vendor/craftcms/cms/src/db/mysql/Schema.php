@@ -23,16 +23,10 @@ use yii\db\Exception;
  */
 class Schema extends \yii\db\mysql\Schema
 {
-    // Constants
-    // =========================================================================
-
     const TYPE_TINYTEXT = 'tinytext';
     const TYPE_MEDIUMTEXT = 'mediumtext';
     const TYPE_LONGTEXT = 'longtext';
     const TYPE_ENUM = 'enum';
-
-    // Properties
-    // =========================================================================
 
     /**
      * @inheritdoc
@@ -43,9 +37,6 @@ class Schema extends \yii\db\mysql\Schema
      * @var int The maximum length that objects' names can be.
      */
     public $maxObjectNameLength = 64;
-
-    // Public Methods
-    // =========================================================================
 
     /**
      * @inheritdoc
@@ -157,6 +148,7 @@ class Schema extends \yii\db\mysql\Schema
             ' --dump-date' .
             ' --no-autocommit' .
             ' --routines' .
+            ' --default-character-set=' . Craft::$app->getConfig()->getDb()->charset .
             ' --set-charset' .
             ' --triggers';
 
@@ -238,9 +230,6 @@ class Schema extends \yii\db\mysql\Schema
         return $indexes;
     }
 
-    // Protected Methods
-    // =========================================================================
-
     /**
      * Loads the metadata for the specified table.
      *
@@ -304,9 +293,6 @@ SQL;
             ]);
         }
     }
-
-    // Private Methods
-    // =========================================================================
 
     /**
      * Creates a temporary my.cnf file based on the DB config settings.

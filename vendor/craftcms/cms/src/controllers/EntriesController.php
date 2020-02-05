@@ -35,17 +35,11 @@ use yii\web\ServerErrorHttpException;
  */
 class EntriesController extends BaseEntriesController
 {
-    // Constants
-    // =========================================================================
-
     /**
      * @event ElementEvent The event that is triggered when an entry’s template is rendered for Live Preview.
      * @deprecated in 3.2.0
      */
     const EVENT_PREVIEW_ENTRY = 'previewEntry';
-
-    // Public Methods
-    // =========================================================================
 
     /**
      * Called when a user beings up an entry for editing before being displayed.
@@ -476,9 +470,6 @@ class EntriesController extends BaseEntriesController
         return $this->redirectToPostedUrl($entry);
     }
 
-    // Private Methods
-    // =========================================================================
-
     /**
      * Preps entry edit variables.
      *
@@ -690,8 +681,15 @@ class EntriesController extends BaseEntriesController
         if (($expiryDate = $request->getBodyParam('expiryDate')) !== null) {
             $entry->expiryDate = DateTimeHelper::toDateTime($expiryDate) ?: null;
         }
-        $entry->enabled = (bool)$request->getBodyParam('enabled', $entry->enabled);
-        $entry->enabledForSite = (bool)$request->getBodyParam('enabledForSite', $entry->enabledForSite);
+
+        $enabledForSite = $this->enabledForSiteValue();
+        if (is_array($enabledForSite)) {
+            // Set the global status to true if it's enabled for *any* sites, or if already enabled.
+            $entry->enabled = in_array(true, $enabledForSite, false) || $entry->enabled;
+        } else {
+            $entry->enabled = (bool)$request->getBodyParam('enabled', $entry->enabled);
+        }
+        $entry->setEnabledForSite($enabledForSite ?? $entry->getEnabledForSite());
         $entry->title = $request->getBodyParam('title', $entry->title);
 
         if (!$entry->typeId) {

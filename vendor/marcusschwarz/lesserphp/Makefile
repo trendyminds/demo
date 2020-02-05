@@ -1,6 +1,6 @@
 
 test:
-	vendor/bin/phpunit --colors tests
+	phpunit --colors tests
 
 release:
 	./package.sh

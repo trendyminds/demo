@@ -8,7 +8,7 @@
 namespace craft\base;
 
 use Craft;
-use craft\behaviors\ContentBehavior;
+use craft\behaviors\CustomFieldBehavior;
 use craft\behaviors\DraftBehavior;
 use craft\behaviors\RevisionBehavior;
 use craft\db\Query;
@@ -65,6 +65,7 @@ use yii\validators\Validator;
  * @property string|null $cpEditUrl The element’s edit URL in the control panel
  * @property ElementQueryInterface $descendants The element’s descendants
  * @property string $editorHtml The HTML for the element’s editor HUD
+ * @property bool $enabledForSite Whether the element is enabled for this site
  * @property string $fieldColumnPrefix The field column prefix this element’s content uses
  * @property string $fieldContext The field context this element’s content uses
  * @property FieldLayout|null $fieldLayout The field layout used by this element
@@ -92,19 +93,13 @@ use yii\validators\Validator;
  * @property string|null $url The element’s full URL
  * @property-write int|null $revisionCreatorId revision creator ID to be saved
  * @property-write string|null $revisionNotes revision notes to be saved
- * @mixin ContentBehavior
+ * @mixin CustomFieldBehavior
  * @author Pixel & Tonic, Inc. <support@pixelandtonic.com>
  * @since 3.0.0
  */
 abstract class Element extends Component implements ElementInterface
 {
-    // Traits
-    // =========================================================================
-
     use ElementTrait;
-
-    // Constants
-    // =========================================================================
 
     /**
      * @since 3.3.6
@@ -327,9 +322,6 @@ abstract class Element extends Component implements ElementInterface
      * @event ElementStructureEvent The event that is triggered after the element is moved in a structure.
      */
     const EVENT_AFTER_MOVE_IN_STRUCTURE = 'afterMoveInStructure';
-
-    // Static
-    // =========================================================================
 
     /**
      * @inheritdoc
@@ -930,9 +922,6 @@ abstract class Element extends Component implements ElementInterface
         return $result;
     }
 
-    // Properties
-    // =========================================================================
-
     /**
      * @var string|null Revision creator ID to be saved
      * @see setRevisionCreatorId()
@@ -1033,8 +1022,12 @@ abstract class Element extends Component implements ElementInterface
      */
     private $_currentRevision;
 
-    // Public Methods
-    // =========================================================================
+    /**
+     * @var bool|bool[]
+     * @see getEnabledForSite()
+     * @see setEnabledForSite()
+     */
+    private $_enabledForSite = true;
 
     /**
      * @inheritdoc
@@ -1101,7 +1094,7 @@ abstract class Element extends Component implements ElementInterface
             return $this->getFieldValue(substr($name, 6));
         }
 
-        // If this is a field, make sure the value has been normalized before returning the ContentBehavior value
+        // If this is a field, make sure the value has been normalized before returning the CustomFieldBehavior value
         if ($this->fieldByHandle($name) !== null) {
             $this->normalizeFieldValue($name);
         }
@@ -1141,7 +1134,7 @@ abstract class Element extends Component implements ElementInterface
     public function behaviors()
     {
         $behaviors = parent::behaviors();
-        $behaviors['customFields'] = ContentBehavior::class;
+        $behaviors['customFields'] = CustomFieldBehavior::class;
         return $behaviors;
     }
 
@@ -1687,9 +1680,15 @@ abstract class Element extends Component implements ElementInterface
                     unset($previewTarget['urlFormat']);
                 }
             }
-            if (isset($previewTarget['url'])) {
-                $normalized[] = $previewTarget;
+            if (!isset($previewTarget['url'])) {
+                // No URL, no preview target
+                continue;
             }
+            $previewTarget['url'] = UrlHelper::siteUrl($previewTarget['url']);
+            if (!isset($previewTarget['refresh'])) {
+                $previewTarget['refresh'] = true;
+            }
+            $normalized[] = $previewTarget;
         }
 
         return $normalized;
@@ -1701,6 +1700,38 @@ abstract class Element extends Component implements ElementInterface
     public function getThumbUrl(int $size)
     {
         return null;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function getEnabledForSite(int $siteId = null)
+    {
+        if ($siteId === null) {
+            $siteId = $this->siteId;
+        }
+        if (is_array($this->_enabledForSite)) {
+            return $this->_enabledForSite[$siteId] ?? ($siteId == $this->siteId ? true : null);
+        }
+        if ($siteId == $this->siteId) {
+            return is_bool($this->_enabledForSite) ? $this->_enabledForSite : true;
+        }
+        return null;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function setEnabledForSite($enabledForSite)
+    {
+        if (is_array($enabledForSite)) {
+            foreach ($enabledForSite as &$value) {
+                $value = (bool)$value;
+            }
+        } else {
+            $enabledForSite = (bool)$enabledForSite;
+        }
+        $this->_enabledForSite = $enabledForSite;
     }
 
     /**
@@ -2183,7 +2214,7 @@ abstract class Element extends Component implements ElementInterface
      */
     public function isFieldDirty(string $fieldHandle): bool
     {
-        return $this->_allDirty || isset($this->_dirtyFields[$fieldHandle]);
+        return $this->_allDirty() || isset($this->_dirtyFields[$fieldHandle]);
     }
 
     /**
@@ -2191,13 +2222,23 @@ abstract class Element extends Component implements ElementInterface
      */
     public function getDirtyFields(): array
     {
-        if ($this->_allDirty) {
+        if ($this->_allDirty()) {
             return ArrayHelper::getColumn($this->fieldLayoutFields(), 'handle');
         }
         if ($this->_dirtyFields) {
             return array_keys($this->_dirtyFields);
         }
         return [];
+    }
+
+    /**
+     * Returns whether all fields should be considered dirty.
+     *
+     * @return bool
+     */
+    private function _allDirty(): bool
+    {
+        return $this->_allDirty || $this->resaving;
     }
 
     /**
@@ -2611,9 +2652,6 @@ abstract class Element extends Component implements ElementInterface
         }
     }
 
-    // Protected Methods
-    // =========================================================================
-
     /**
      * Normalizes a field’s value.
      *
@@ -2890,9 +2928,6 @@ abstract class Element extends Component implements ElementInterface
     {
         return [];
     }
-
-    // Private Methods
-    // =========================================================================
 
     /**
      * Returns an element right before/after this one, from a given set of criteria.

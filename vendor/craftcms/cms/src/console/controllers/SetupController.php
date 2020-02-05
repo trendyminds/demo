@@ -12,11 +12,13 @@ use Craft;
 use craft\config\DbConfig;
 use craft\console\Controller;
 use craft\db\Connection;
+use craft\db\Table;
 use craft\errors\DbConnectException;
 use craft\helpers\App;
 use craft\helpers\Console;
 use craft\helpers\FileHelper;
 use craft\helpers\StringHelper;
+use craft\migrations\CreatePhpSessionTable;
 use Seld\CliPrompt\CliPrompt;
 use yii\base\InvalidConfigException;
 use yii\console\ExitCode;
@@ -29,9 +31,6 @@ use yii\console\ExitCode;
  */
 class SetupController extends Controller
 {
-    // Properties
-    // =========================================================================
-
     /**
      * @var string|null The database driver to use. Either 'mysql' for MySQL or 'pgsql' for PostgreSQL.
      */
@@ -66,9 +65,6 @@ class SetupController extends Controller
      * be no more than 5 characters, and must be all lowercase.
      */
     public $tablePrefix;
-
-    // Public Methods
-    // =========================================================================
 
     /**
      * @inheritdoc
@@ -356,12 +352,9 @@ EOD;
         $this->stdout('Saving database credentials to your .env file ... ', Console::FG_YELLOW);
 
         if (
-            !$this->_setEnvVar('DB_DRIVER', $this->driver) ||
-            !$this->_setEnvVar('DB_SERVER', $this->server) ||
-            !$this->_setEnvVar('DB_PORT', $this->port) ||
+            !$this->_setEnvVar('DB_DSN', $dbConfig->dsn) ||
             !$this->_setEnvVar('DB_USER', $this->user) ||
             !$this->_setEnvVar('DB_PASSWORD', $this->password) ||
-            !$this->_setEnvVar('DB_DATABASE', $this->database) ||
             !$this->_setEnvVar('DB_SCHEMA', $this->schema) ||
             !$this->_setEnvVar('DB_TABLE_PREFIX', $this->tablePrefix)
         ) {
@@ -382,8 +375,28 @@ EOD;
         return $this->actionDbCreds();
     }
 
-    // Private Methods
-    // =========================================================================
+    /**
+     * Creates a database table for storing PHP session information.
+     *
+     * @return int
+     * @since 3.4.0
+     */
+    public function actionPhpSessionTable(): int
+    {
+        if (Craft::$app->getDb()->tableExists(Table::PHPSESSIONS)) {
+            $this->stdout('The `phpsessions` table already exists.' . PHP_EOL . PHP_EOL, Console::FG_YELLOW);
+            return ExitCode::OK;
+        }
+
+        $migration = new CreatePhpSessionTable();
+        if ($migration->up() === false) {
+            $this->stderr('An error occurred while creating the `phpsessions` table.' . PHP_EOL . PHP_EOL, Console::FG_RED);
+            return ExitCode::UNSPECIFIED_ERROR;
+        }
+
+        $this->stdout('The `phpsessions` table was created successfully.' . PHP_EOL . PHP_EOL, Console::FG_GREEN);
+        return ExitCode::OK;
+    }
 
     /**
      * Outputs a terminal command.

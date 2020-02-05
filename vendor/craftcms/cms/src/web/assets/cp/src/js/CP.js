@@ -321,9 +321,6 @@ Craft.CP = Garnish.Base.extend(
             this._selectTab($tab, this.$tabs.index($tab.parent()));
             this.updateTabs();
             this.$overflowTabBtn.data('menubtn').menu.hide();
-
-            // Fixes Redactor fixed toolbars on previously hidden panes
-            Garnish.$doc.trigger('scroll');
         },
 
         _selectTab: function($tab, index) {
@@ -334,6 +331,10 @@ Craft.CP = Garnish.Base.extend(
             } else {
                 $('#content').removeClass('square');
             }
+
+            Garnish.$win.trigger('resize');
+            // Fixes Redactor fixed toolbars on previously hidden panes
+            Garnish.$doc.trigger('scroll');
         },
 
         deselectTab: function() {
@@ -438,8 +439,12 @@ Craft.CP = Garnish.Base.extend(
             // Have we scrolled passed the top of #main?
             if (this.$main.length && this.$headerContainer[0].getBoundingClientRect().top < 0) {
                 if (!this.fixedHeader) {
-                    // Hard-set the header container height
                     var headerHeight = this.$headerContainer.height();
+
+                    // Hard-set the minimum content container height
+                    this.$contentContainer.css('min-height', 'calc(100vh - ' + (headerHeight + 14 + 48 - 1) + 'px)');
+
+                    // Hard-set the header container height
                     this.$headerContainer.height(headerHeight);
                     Garnish.$bod.addClass('fixed-header');
 
@@ -450,18 +455,15 @@ Craft.CP = Garnish.Base.extend(
                         top: headerHeight + 'px',
                         'max-height': 'calc(100vh - ' + headerHeight + 'px)'
                     };
-                    if (this.$sidebar.outerHeight() < contentHeight) {
-                        this.$sidebar.addClass('fixed').css(css);
-                    }
-                    if (this.$details.outerHeight() < contentHeight) {
-                        this.$details.addClass('fixed').css(css);
-                    }
+                    this.$sidebar.addClass('fixed').css(css);
+                    this.$details.addClass('fixed').css(css);
                     this.fixedHeader = true;
                 }
             }
             else if (this.fixedHeader) {
                 this.$headerContainer.height('auto');
                 Garnish.$bod.removeClass('fixed-header');
+                this.$contentContainer.css('min-height', '');
                 this.$sidebar.removeClass('fixed').css({
                     top: '',
                     'max-height': ''
@@ -543,7 +545,7 @@ Craft.CP = Garnish.Base.extend(
             this.$alerts.remove();
 
             if (Garnish.isArray(alerts) && alerts.length) {
-                this.$alerts = $('<ul id="alerts"/>').prependTo(this.$mainContainer);
+                this.$alerts = $('<ul id="alerts"/>').prependTo($('#page-container'));
 
                 for (var i = 0; i < alerts.length; i++) {
                     $('<li>' + alerts[i] + '</li>').appendTo(this.$alerts);
@@ -579,9 +581,7 @@ Craft.CP = Garnish.Base.extend(
                                 this.displayError(response.error);
                             }
                         }
-
                     }, this));
-
                 }, this));
             }
         },
@@ -774,7 +774,7 @@ Craft.CP = Garnish.Base.extend(
                 if (textStatus === 'success') {
                     this.trackJobProgressTimeout = null;
                     this.totalJobs = response.total;
-                    this.setJobInfo(response.jobs, true);
+                    this.setJobInfo(response.jobs);
 
                     if (this.jobInfo.length) {
                         // Check again after a delay
@@ -784,7 +784,7 @@ Craft.CP = Garnish.Base.extend(
             }, this));
         },
 
-        setJobInfo: function(jobInfo, animateIcon) {
+        setJobInfo: function(jobInfo) {
             if (!this.enableQueue) {
                 return;
             }
@@ -810,7 +810,7 @@ Craft.CP = Garnish.Base.extend(
                 this.displayedJobInfoUnchanged = 1;
             }
 
-            this.updateJobIcon(animateIcon);
+            this.updateJobIcon();
 
             // Fire a setJobInfo event
             this.trigger('setJobInfo');
@@ -840,7 +840,7 @@ Craft.CP = Garnish.Base.extend(
             }
         },
 
-        updateJobIcon: function(animate) {
+        updateJobIcon: function() {
             if (!this.enableQueue || !this.$nav.length) {
                 return;
             }
@@ -852,8 +852,8 @@ Craft.CP = Garnish.Base.extend(
 
                 if (this.displayedJobInfo.status === Craft.CP.JOB_STATUS_RESERVED || this.displayedJobInfo.status === Craft.CP.JOB_STATUS_WAITING) {
                     this.jobProgressIcon.hideFailMode();
-                    this.jobProgressIcon.setDescription(this.displayedJobInfo.description);
-                    this.jobProgressIcon.setProgress(this.displayedJobInfo.progress, animate);
+                    this.jobProgressIcon.setDescription(this.displayedJobInfo.description, this.displayedJobInfo.progressLabel);
+                    this.jobProgressIcon.setProgress(this.displayedJobInfo.progress);
                 }
                 else if (this.displayedJobInfo.status === Craft.CP.JOB_STATUS_FAILED) {
                     this.jobProgressIcon.showFailMode(Craft.t('app', 'Failed'));
@@ -890,7 +890,9 @@ var JobProgressIcon = Garnish.Base.extend(
         $li: null,
         $a: null,
         $label: null,
+        $progressLabel: null,
 
+        progress: null,
         failMode: false,
 
         _canvasSupported: null,
@@ -924,7 +926,9 @@ var JobProgressIcon = Garnish.Base.extend(
                 href: Craft.canAccessQueueManager ? Craft.getUrl('utilities/queue-manager') : null,
             }).appendTo(this.$li);
             this.$canvasContainer = $('<span class="icon"/>').appendTo(this.$a);
-            this.$label = $('<span class="label"></span>').appendTo(this.$a);
+            var $labelContainer = $('<span class="label"/>').appendTo(this.$a);
+            this.$label = $('<span/>').appendTo($labelContainer);
+            this.$progressLabel = $('<span class="progress-label"/>').appendTo($labelContainer).hide();
 
             this._canvasSupported = !!(document.createElement('canvas').getContext);
 
@@ -952,12 +956,17 @@ var JobProgressIcon = Garnish.Base.extend(
             }
         },
 
-        setDescription: function(description) {
+        setDescription: function(description, progressLabel) {
             this.$a.attr('title', description);
             this.$label.text(description);
+            if (progressLabel) {
+                this.$progressLabel.text(progressLabel).show();
+            } else {
+                this.$progressLabel.hide();
+            }
         },
 
-        setProgress: function(progress, animate) {
+        setProgress: function(progress) {
             if (this._canvasSupported) {
                 if (progress == 0) {
                     this._$staticCanvas.hide();
@@ -965,7 +974,7 @@ var JobProgressIcon = Garnish.Base.extend(
                 } else {
                     this._$staticCanvas.show();
                     this._$hoverCanvas.show();
-                    if (animate) {
+                    if (this.progress && progress > this.progress) {
                         this._animateArc(0, progress / 100);
                     }
                     else {
@@ -976,6 +985,8 @@ var JobProgressIcon = Garnish.Base.extend(
             else {
                 this._progressBar.setProgressPercentage(progress);
             }
+
+            this.progress = progress;
         },
 
         complete: function() {
@@ -1001,6 +1012,7 @@ var JobProgressIcon = Garnish.Base.extend(
             }
 
             this.failMode = true;
+            this.progress = null;
 
             if (this._canvasSupported) {
                 this._$bgCanvas.hide();

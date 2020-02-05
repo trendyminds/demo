@@ -5,9 +5,6 @@
  */
 Craft.BaseElementIndex = Garnish.Base.extend(
     {
-        // Properties
-        // =========================================================================
-
         initialized: false,
         elementType: null,
 
@@ -78,9 +75,6 @@ Craft.BaseElementIndex = Garnish.Base.extend(
         exporters: null,
         _$detachedToolbarItems: null,
         _$triggers: null,
-
-        // Public methods
-        // =========================================================================
 
         /**
          * Constructor
@@ -238,7 +232,6 @@ Craft.BaseElementIndex = Garnish.Base.extend(
                 this.stopSearching();
 
                 this.updateElementsIfSearchTextChanged();
-
             }, this));
 
             // Auto-focus the Search box
@@ -366,7 +359,6 @@ Craft.BaseElementIndex = Garnish.Base.extend(
                 } else {
                     Craft.cp.displayError(Craft.t('app', 'A server error occurred.'));
                 }
-
             }, this));
         },
 
@@ -418,6 +410,30 @@ Craft.BaseElementIndex = Garnish.Base.extend(
         },
 
         getDefaultSourceKey: function() {
+            if (this.settings.defaultSource) {
+                var paths = this.settings.defaultSource.split('/'),
+                    path = '';
+
+                // Expand the tree
+                for (var i = 0; i < paths.length; i++) {
+                    path += paths[i];
+                    var $source = this.getSourceByKey(path);
+
+                    // If the folder can't be found, then just go to the stored instance source.
+                    if (!$source) {
+                        return this.instanceState.selectedSource;
+                    }
+
+                    this._expandSource($source);
+                    path += '/';
+                }
+
+                // Just make sure that the modal is aware of the newly expanded sources, too.
+                this._setSite(this.siteId);
+
+                return this.settings.defaultSource;
+            }
+
             return this.instanceState.selectedSource;
         },
 
@@ -621,7 +637,6 @@ Craft.BaseElementIndex = Garnish.Base.extend(
                 } else {
                     Craft.cp.displayError(Craft.t('app', 'A server error occurred.'));
                 }
-
             }, this));
         },
 
@@ -709,7 +724,6 @@ Craft.BaseElementIndex = Garnish.Base.extend(
         },
 
         afterAction: function(action, params) {
-
             // There may be a new background job that needs to be run
             Craft.cp.runQueue();
 
@@ -763,6 +777,15 @@ Craft.BaseElementIndex = Garnish.Base.extend(
 
         getSelectedElementIds: function() {
             return this.view ? this.view.getSelectedElementIds() : [];
+        },
+
+        setStatus: function(status) {
+            // Find the option (and make sure it actually exists)
+            var $option = this.statusMenu.$options.filter('a[data-status="' + status + '"]:first');
+
+            if ($option.length) {
+                this.statusMenu.selectOption($option[0]);
+            }
         },
 
         getSortAttributeOption: function(attr) {
@@ -876,6 +899,12 @@ Craft.BaseElementIndex = Garnish.Base.extend(
                     this.$statusMenuContainer.addClass('hidden');
                 } else {
                     this.$statusMenuContainer.removeClass('hidden');
+                }
+
+                if (this.trashed) {
+                    // Swap to the initial status
+                    var $firstOption = this.statusMenu.$options.first();
+                    this.setStatus($firstOption.data('status'));
                 }
             }
 
@@ -1193,9 +1222,6 @@ Craft.BaseElementIndex = Garnish.Base.extend(
             this.base();
         },
 
-        // Events
-        // =========================================================================
-
         onAfterInit: function() {
             this.settings.onAfterInit();
             this.trigger('afterInit');
@@ -1235,9 +1261,6 @@ Craft.BaseElementIndex = Garnish.Base.extend(
             this.settings.onAfterAction(action, params);
             this.trigger('afterAction', {action: action, params: params});
         },
-
-        // Private methods
-        // =========================================================================
 
         // UI state handlers
         // -------------------------------------------------------------------------
@@ -1777,6 +1800,7 @@ Craft.BaseElementIndex = Garnish.Base.extend(
                 $spinner.removeClass('hidden');
 
                 var params = this.getViewParams();
+                delete params.criteria.offset;
                 delete params.criteria.limit;
 
                 params.type = $typeField.find('select').val();
@@ -1803,7 +1827,6 @@ Craft.BaseElementIndex = Garnish.Base.extend(
                     } else {
                         Craft.cp.displayError(Craft.t('app', 'A server error occurred.'));
                     }
-
                 }, this));
             });
         },
@@ -1826,17 +1849,13 @@ Craft.BaseElementIndex = Garnish.Base.extend(
             }
         }
     },
-
-// Static Properties
-// =============================================================================
-
     {
         defaults: {
             context: 'index',
             modal: null,
             storageKey: null,
             criteria: null,
-            batchSize: 50,
+            batchSize: 100,
             disabledElementIds: [],
             selectable: false,
             multiSelect: false,
@@ -1846,6 +1865,7 @@ Craft.BaseElementIndex = Garnish.Base.extend(
             refreshSourcesAction: 'element-indexes/get-source-tree-html',
             updateElementsAction: 'element-indexes/get-elements',
             submitActionsAction: 'element-indexes/perform-action',
+            defaultSource: null,
 
             onAfterInit: $.noop,
             onSelectSource: $.noop,

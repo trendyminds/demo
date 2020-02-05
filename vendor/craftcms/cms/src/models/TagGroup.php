@@ -24,9 +24,6 @@ use craft\validators\UniqueValidator;
  */
 class TagGroup extends Model
 {
-    // Properties
-    // =========================================================================
-
     /**
      * @var int|null ID
      */
@@ -52,20 +49,17 @@ class TagGroup extends Model
      */
     public $uid;
 
-    // Public Methods
-    // =========================================================================
-
     /**
      * @inheritdoc
      */
     public function behaviors()
     {
-        return [
-            'fieldLayout' => [
-                'class' => FieldLayoutBehavior::class,
-                'elementType' => Tag::class
-            ],
+        $behaviors = parent::behaviors();
+        $behaviors['fieldLayout'] = [
+            'class' => FieldLayoutBehavior::class,
+            'elementType' => Tag::class,
         ];
+        return $behaviors;
     }
 
     /**

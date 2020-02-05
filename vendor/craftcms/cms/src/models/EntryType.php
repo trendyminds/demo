@@ -26,9 +26,6 @@ use yii\base\InvalidConfigException;
  */
 class EntryType extends Model
 {
-    // Properties
-    // =========================================================================
-
     /**
      * @var int|null ID
      */
@@ -74,20 +71,17 @@ class EntryType extends Model
      */
     public $uid;
 
-    // Public Methods
-    // =========================================================================
-
     /**
      * @inheritdoc
      */
     public function behaviors()
     {
-        return [
-            'fieldLayout' => [
-                'class' => FieldLayoutBehavior::class,
-                'elementType' => Entry::class
-            ],
+        $behaviors = parent::behaviors();
+        $behaviors['fieldLayout'] = [
+            'class' => FieldLayoutBehavior::class,
+            'elementType' => Entry::class,
         ];
+        return $behaviors;
     }
 
     /**

@@ -27,9 +27,6 @@ use yii\base\InvalidConfigException;
  */
 class Cp extends Component
 {
-    // Constants
-    // =========================================================================
-
     /**
      * @event RegisterCpNavItemsEvent The event that is triggered when registering control panel nav items.
      */
@@ -40,9 +37,6 @@ class Cp extends Component
      * @since 3.1.0
      */
     const EVENT_REGISTER_CP_SETTINGS = 'registerCpSettings';
-
-    // Public Methods
-    // =========================================================================
 
     /**
      * Returns the Craft ID account URL.
@@ -162,24 +156,6 @@ class Cp extends Component
             }
         }
 
-        $utilities = Craft::$app->getUtilities()->getAuthorizedUtilityTypes();
-
-        if (!empty($utilities)) {
-            $badgeCount = 0;
-
-            foreach ($utilities as $class) {
-                /** @var UtilityInterface $class */
-                $badgeCount += $class::badgeCount();
-            }
-
-            $navItems[] = [
-                'url' => 'utilities',
-                'label' => Craft::t('app', 'Utilities'),
-                'fontIcon' => 'tool',
-                'badgeCount' => $badgeCount
-            ];
-        }
-
         if ($isAdmin) {
             if ($craftPro && $generalConfig->enableGql) {
                 $subNavItems = [
@@ -208,7 +184,27 @@ class Cp extends Component
                     'subnav' => $subNavItems
                 ];
             }
+        }
 
+        $utilities = Craft::$app->getUtilities()->getAuthorizedUtilityTypes();
+
+        if (!empty($utilities)) {
+            $badgeCount = 0;
+
+            foreach ($utilities as $class) {
+                /** @var UtilityInterface $class */
+                $badgeCount += $class::badgeCount();
+            }
+
+            $navItems[] = [
+                'url' => 'utilities',
+                'label' => Craft::t('app', 'Utilities'),
+                'fontIcon' => 'tool',
+                'badgeCount' => $badgeCount
+            ];
+        }
+
+        if ($isAdmin) {
             if ($generalConfig->allowAdminChanges) {
                 $navItems[] = [
                     'url' => 'settings',

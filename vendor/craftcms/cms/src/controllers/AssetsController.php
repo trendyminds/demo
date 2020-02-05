@@ -8,8 +8,7 @@
 namespace craft\controllers;
 
 use Craft;
-use craft\assetpreviews\NoPreview;
-use craft\base\AssetPreview;
+use craft\base\AssetPreviewHandler;
 use craft\base\Element;
 use craft\base\Volume;
 use craft\elements\Asset;
@@ -51,16 +50,10 @@ use ZipArchive;
  */
 class AssetsController extends Controller
 {
-    // Properties
-    // =========================================================================
-
     /**
      * @inheritdoc
      */
     protected $allowAnonymous = ['generate-thumb', 'generate-transform'];
-
-    // Public Methods
-    // =========================================================================
 
     /**
      * Edits an asset.
@@ -137,9 +130,7 @@ class AssetsController extends Controller
                 '</div>' .
                 '<div class="buttons">';
 
-            $previewer = Craft::$app->getAssets()->getAssetPreview($asset);
-
-            if (!$previewer instanceof NoPreview) {
+            if (Craft::$app->getAssets()->getAssetPreviewHandler($asset) !== null) {
                 $previewHtml .= '<div class="btn" id="preview-btn">' . Craft::t('app', 'Preview') . '</div>';
             }
 
@@ -160,8 +151,16 @@ class AssetsController extends Controller
             ($userSession->getId() == $asset->uploaderId || $userSession->checkPermission("replacePeerFilesInVolume:{$volume->uid}"))
         );
 
+        if (in_array($asset->kind, [Asset::KIND_IMAGE, Asset::KIND_PDF, Asset::KIND_TEXT])) {
+            $assetUrl = $asset->getUrl();
+        } else {
+            $assetUrl = null;
+        }
+
         return $this->renderTemplate('assets/_edit', [
             'element' => $asset,
+            'volume' => $volume,
+            'assetUrl' => $assetUrl,
             'title' => trim($asset->title) ?: Craft::t('app', 'Edit Asset'),
             'crumbs' => $crumbs,
             'previewHtml' => $previewHtml,
@@ -479,11 +478,10 @@ class AssetsController extends Controller
             throw new BadRequestHttpException('The parent folder cannot be found');
         }
 
-        // Check if it's possible to create subfolders in target Volume.
-        $this->_requirePermissionByFolder('createFoldersInVolume',
-            $parentFolder);
-
         try {
+            // Check if it's possible to create subfolders in target Volume.
+            $this->_requirePermissionByFolder('createFoldersInVolume', $parentFolder);
+
             $folderModel = new VolumeFolder();
             $folderModel->name = $folderName;
             $folderModel->parentId = $parentId;
@@ -499,6 +497,8 @@ class AssetsController extends Controller
                 'folderId' => $folderModel->id
             ]);
         } catch (AssetException $exception) {
+            return $this->asErrorJson($exception->getMessage());
+        } catch (ForbiddenHttpException $exception) {
             return $this->asErrorJson($exception->getMessage());
         }
     }
@@ -1160,16 +1160,25 @@ class AssetsController extends Controller
             return $this->asErrorJson(Craft::t('app', 'Asset not found with that id'));
         }
 
-        $assets = Craft::$app->getAssets();
+        $previewHtml = null;
 
-        /** @var AssetPreview $preview */
-        $preview = $assets->getAssetPreview($asset);
+        // todo: we should be passing the asset into getPreviewHtml(), not the constructor
+        $previewHandler = Craft::$app->getAssets()->getAssetPreviewHandler($asset);
+        if ($previewHandler) {
+            try {
+                $previewHtml = $previewHandler->getPreviewHtml();
+            } catch (NotSupportedException $e) {
+                // No big deal
+            }
+        }
+
+        $view = $this->getView();
 
         return $this->asJson([
             'success' => true,
-            'modalHtml' => $preview->getModalHtml(),
-            'headHtml' => $preview->getHeadHtml(),
-            'footHtml' => $preview->getFootHtml(),
+            'previewHtml' => $previewHtml,
+            'headHtml' => $view->getHeadHtml(),
+            'footHtml' => $view->getBodyHtml(),
             'requestId' => $requestId,
         ]);
     }

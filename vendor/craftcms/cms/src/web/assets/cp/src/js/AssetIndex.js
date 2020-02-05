@@ -624,7 +624,6 @@ Craft.AssetIndex = Craft.BaseElementIndex.extend(
                         action: 'assets/move-asset',
                         params: fileMoveList[i]
                     });
-
                 }
                 this._performBatchRequests(parameterArray, function() {
                     moveCallback(folderDeleteList);
@@ -783,7 +782,7 @@ Craft.AssetIndex = Craft.BaseElementIndex.extend(
                 if (this.$includeSubfoldersContainer === null) {
                     var id = 'includeSubfolders-' + Math.floor(Math.random() * 1000000000);
 
-                    this.$includeSubfoldersContainer = $('<div style="margin-bottom: -23px; opacity: 0;"/>').insertAfter(this.$search);
+                    this.$includeSubfoldersContainer = $('<div style="margin-bottom: -25px; opacity: 0;"/>').insertAfter(this.$search);
                     var $subContainer = $('<div style="padding-top: 5px;"/>').appendTo(this.$includeSubfoldersContainer);
                     this.$includeSubfoldersCheckbox = $('<input type="checkbox" id="' + id + '" class="checkbox"/>').appendTo($subContainer);
                     $('<label class="light smalltext" for="' + id + '"/>').text(' ' + Craft.t('app', 'Search in subfolders')).appendTo($subContainer);
@@ -816,7 +815,7 @@ Craft.AssetIndex = Craft.BaseElementIndex.extend(
                 this.$includeSubfoldersContainer.velocity('stop');
 
                 this.$includeSubfoldersContainer.velocity({
-                    marginBottom: -23,
+                    marginBottom: -25,
                     opacity: 0
                 }, 'fast');
 
@@ -965,7 +964,6 @@ Craft.AssetIndex = Craft.BaseElementIndex.extend(
                     else {
                         doFollowup(parameterArray, parameterIndex, callback);
                     }
-
                 }.bind(this);
 
                 if (parameterArray[parameterIndex].choice === 'replace') {
@@ -1348,7 +1346,6 @@ Craft.AssetIndex = Craft.BaseElementIndex.extend(
                     if (textStatus === 'success' && data.error) {
                         alert(data.error);
                     }
-
                 }, this), 'json');
             }
         },
@@ -1440,7 +1437,6 @@ Craft.AssetIndex = Craft.BaseElementIndex.extend(
         },
 
         _performBatchRequests: function(parameterArray, finalCallback) {
-
             var responseArray = [];
 
             var doRequest = function (parameters) {
@@ -1465,7 +1461,6 @@ Craft.AssetIndex = Craft.BaseElementIndex.extend(
                 doRequest(parameterArray[i]);
             }
         }
-
     });
 
 // Register it!

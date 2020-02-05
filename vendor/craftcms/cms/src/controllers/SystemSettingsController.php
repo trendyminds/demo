@@ -36,9 +36,6 @@ use yii\web\Response;
  */
 class SystemSettingsController extends Controller
 {
-    // Public Methods
-    // =========================================================================
-
     /**
      * @inheritdoc
      */
@@ -349,9 +346,6 @@ class SystemSettingsController extends Controller
         ]);
     }
 
-    // Private Methods
-    // =========================================================================
-
     /**
      * Creates a MailSettings model, populated with post data.
      *
@@ -363,6 +357,7 @@ class SystemSettingsController extends Controller
         $settings = new MailSettings();
 
         $settings->fromEmail = $request->getBodyParam('fromEmail');
+        $settings->replyToEmail = $request->getBodyParam('replyToEmail') ?: null;
         $settings->fromName = $request->getBodyParam('fromName');
         $settings->template = $request->getBodyParam('template');
         $settings->transportType = $request->getBodyParam('transportType');

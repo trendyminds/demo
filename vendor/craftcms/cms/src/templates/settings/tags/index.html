@@ -27,21 +27,15 @@
         id: tagGroup.id,
         title: tagGroup.name|t('site'),
         url: url('settings/tags/' ~ tagGroup.id),
-        name: tagGroup.name|t('site'),
+        name: tagGroup.name|t('site')|e,
         handle: tagGroup.handle,
     }]) %}
 {% endfor %}
 
 {% js %}
     var columns = [
-        {
-            name: '__slot:title',
-            title: Craft.t('app', 'Name'),
-        },
-        {
-            name: '__slot:handle',
-            title: Craft.t('app', 'Handle'),
-        },
+        { name: '__slot:title', title: Craft.t('app', 'Name') },
+        { name: '__slot:handle', title: Craft.t('app', 'Handle') },
     ];
 
     new Craft.VueAdminTable({

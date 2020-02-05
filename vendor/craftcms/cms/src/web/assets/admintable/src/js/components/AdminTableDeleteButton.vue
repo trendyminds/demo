@@ -15,26 +15,32 @@
         name: 'AdminTableDeleteButton',
 
         props: {
+            actionUrl: String,
+            confirmationMessage: String,
+            disabled: Boolean,
+            failMessage: String,
             id: [Number, String],
             name: String,
-            confirmationMessage: String,
-            actionUrl: String,
             successMessage: String,
-            disabled: Boolean,
         },
 
         data() {
             return {
-
             }
         },
 
         computed: {
             success() {
-                return this.successMessage !== undefined ? Craft.t('site', this.successMessage, {name: this.name}) : Craft.escapeHtml(Craft.t('app', '“{name}” deleted.', {name: this.name}));
+                var successMessage = this.successMessage !== undefined ? Craft.t('site', this.successMessage, {name: this.name}) : Craft.t('app', '“{name}” deleted.', {name: this.name});
+                return Craft.escapeHtml(successMessage);
             },
             confirm() {
-                return this.confirmationMessage !== undefined ? Craft.t('site', this.confirmationMessage, {name: this.name}) : Craft.t('app', 'Are you sure you want to delete “{name}”?', {name: this.name});
+                var confirmationMessage = this.confirmationMessage !== undefined ? Craft.t('site', this.confirmationMessage, {name: this.name}) : Craft.t('app', 'Are you sure you want to delete “{name}”?', {name: this.name});
+                return Craft.escapeHtml(confirmationMessage);
+            },
+            failed() {
+                var failMessage = this.failMessage !== undefined ? Craft.t('site', this.failMessage, {name: this.name}) : Craft.t('app', 'Couldn’t delete “{name}”.', {name: this.name});
+                return Craft.escapeHtml(failMessage);
             }
         },
 
@@ -52,6 +58,8 @@
                         if (response.data && response.data.success !== undefined && response.data.success) {
                             Craft.cp.displayNotice(this.success);
                             this.$emit('reload');
+                        } else {
+                            Craft.cp.displayError(this.failed);
                         }
                     });
                 }

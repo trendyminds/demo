@@ -44,9 +44,6 @@ use yii\base\Exception;
  */
 class Matrix extends Component
 {
-    // Properties
-    // =========================================================================
-
     /**
      * @var bool Whether to ignore changes to the project config.
      * @deprecated in 3.1.2. Use [[\craft\services\ProjectConfig::$muteEvents]] instead.
@@ -80,9 +77,6 @@ class Matrix extends Component
 
     const CONFIG_BLOCKTYPE_KEY = 'matrixBlockTypes';
 
-
-    // Public Methods
-    // =========================================================================
 
     /**
      * Returns the block types for a given Matrix field.
@@ -482,35 +476,39 @@ class Matrix extends Component
 
             /** @var MatrixField $matrixField */
             $matrixField = $fieldsService->getFieldById($blockType->fieldId);
-            $contentService->contentTable = $matrixField->contentTable;
 
-            // Set the new fieldColumnPrefix
-            $originalFieldColumnPrefix = Craft::$app->getContent()->fieldColumnPrefix;
-            Craft::$app->getContent()->fieldColumnPrefix = 'field_' . $blockType->handle . '_';
+            // Ignore it, if the parent field is not a Matrix field.
+            if ($matrixField instanceof MatrixField) {
+                $contentService->contentTable = $matrixField->contentTable;
 
-            // Now delete the block type fields
-            foreach ($blockType->getFields() as $field) {
-                Craft::$app->getFields()->deleteField($field);
+                // Set the new fieldColumnPrefix
+                $originalFieldColumnPrefix = Craft::$app->getContent()->fieldColumnPrefix;
+                Craft::$app->getContent()->fieldColumnPrefix = 'field_' . $blockType->handle . '_';
+
+                // Now delete the block type fields
+                foreach ($blockType->getFields() as $field) {
+                    Craft::$app->getFields()->deleteField($field);
+                }
+
+                // Restore the contentTable and the fieldColumnPrefix to original values.
+                Craft::$app->getContent()->fieldColumnPrefix = $originalFieldColumnPrefix;
+                $contentService->contentTable = $originalContentTable;
+
+                // Delete the field layout
+                $fieldLayoutId = (new Query())
+                    ->select(['fieldLayoutId'])
+                    ->from([Table::MATRIXBLOCKTYPES])
+                    ->where(['id' => $blockTypeRecord->id])
+                    ->scalar();
+
+                // Delete the field layout
+                Craft::$app->getFields()->deleteLayoutById($fieldLayoutId);
+
+                // Finally delete the actual block type
+                $db->createCommand()
+                    ->delete(Table::MATRIXBLOCKTYPES, ['id' => $blockTypeRecord->id])
+                    ->execute();
             }
-
-            // Restore the contentTable and the fieldColumnPrefix to original values.
-            Craft::$app->getContent()->fieldColumnPrefix = $originalFieldColumnPrefix;
-            $contentService->contentTable = $originalContentTable;
-
-            // Delete the field layout
-            $fieldLayoutId = (new Query())
-                ->select(['fieldLayoutId'])
-                ->from([Table::MATRIXBLOCKTYPES])
-                ->where(['id' => $blockTypeRecord->id])
-                ->scalar();
-
-            // Delete the field layout
-            Craft::$app->getFields()->deleteLayoutById($fieldLayoutId);
-
-            // Finally delete the actual block type
-            $db->createCommand()
-                ->delete(Table::MATRIXBLOCKTYPES, ['id' => $blockTypeRecord->id])
-                ->execute();
 
             $transaction->commit();
         } catch (\Throwable $e) {
@@ -1011,9 +1009,6 @@ class Matrix extends Component
 
         return $siteIds;
     }
-
-    // Private Methods
-    // =========================================================================
 
     /**
      * Returns a Query object prepped for retrieving block types.

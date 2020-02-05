@@ -59,13 +59,7 @@ use yii\web\Response;
  */
 class Application extends \yii\web\Application
 {
-    // Traits
-    // =========================================================================
-
     use ApplicationTrait;
-
-    // Constants
-    // =========================================================================
 
     /**
      * @event \yii\base\Event The event that is triggered after the application has been fully initialized
@@ -85,9 +79,6 @@ class Application extends \yii\web\Application
      * @event \craft\events\EditionChangeEvent The event that is triggered after the edition changes
      */
     const EVENT_AFTER_EDITION_CHANGE = 'afterEditionChange';
-
-    // Public Methods
-    // =========================================================================
 
     /**
      * Constructor.
@@ -355,17 +346,22 @@ class Application extends \yii\web\Application
         return $component;
     }
 
-    // Protected Methods
-    // =========================================================================
-
     /**
      * Ensures that the resources folder exists and is writable.
      *
+     * @throws ErrorException
      * @throws InvalidConfigException
+     * @throws \yii\base\Exception
      */
     protected function ensureResourcePathExists()
     {
-        $resourceBasePath = Craft::getAlias($this->getConfig()->getGeneral()->resourceBasePath);
+        $generalConfig = $this->getConfig()->getGeneral();
+
+        if ($generalConfig->resourceBasePath === false) {
+            return;
+        }
+
+        $resourceBasePath = Craft::getAlias($generalConfig->resourceBasePath);
         @FileHelper::createDirectory($resourceBasePath);
 
         if (!is_dir($resourceBasePath) || !FileHelper::isWritable($resourceBasePath)) {
@@ -423,9 +419,6 @@ class Application extends \yii\web\Application
         $module = $this->getModule('debug');
         $module->bootstrap($this);
     }
-
-    // Private Methods
-    // =========================================================================
 
     /**
      * Unregisters the Debug module's end body event.
@@ -535,7 +528,7 @@ class Application extends \yii\web\Application
             }
 
             // Redirect to the installer if Dev Mode is enabled
-            if (Craft::$app->getConfig()->getGeneral()->devMode) {
+            if (YII_DEBUG) {
                 $url = UrlHelper::url('install');
                 $this->getResponse()->redirect($url);
                 $this->end();

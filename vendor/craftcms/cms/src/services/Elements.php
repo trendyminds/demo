@@ -66,9 +66,6 @@ use yii\db\Exception as DbException;
  */
 class Elements extends Component
 {
-    // Constants
-    // =========================================================================
-
     /**
      * @event RegisterComponentTypesEvent The event that is triggered when registering element types.
      *
@@ -224,9 +221,6 @@ class Elements extends Component
      */
     const EVENT_AFTER_PERFORM_ACTION = 'afterPerformAction';
 
-    // Static
-    // =========================================================================
-
     /**
      * @var int[] Stores a mapping of source element IDs to their duplicated element IDs.
      */
@@ -237,9 +231,6 @@ class Elements extends Component
      * @since 3.4.0
      */
     public static $duplicatedElementSourceIds = [];
-
-    // Properties
-    // =========================================================================
 
     /**
      * @var array|null
@@ -258,8 +249,11 @@ class Elements extends Component
      */
     private $_elementTypesByRefHandle = [];
 
-    // Public Methods
-    // =========================================================================
+    /**
+     * @var bool|null Whether we should be updating search indexes for elements if not told explicitly.
+     * @since 3.1.2
+     */
+    private $_updateSearchIndex;
 
     /**
      * Creates an element with a given config.
@@ -520,14 +514,14 @@ class Elements extends Component
      * @param bool $runValidation Whether the element should be validated
      * @param bool $propagate Whether the element should be saved across all of its supported sites
      * (this can only be disabled when updating an existing element)
-     * @param bool $updateSearchIndex Whether to update the element search index for the element
+     * @param bool|null $updateSearchIndex Whether to update the element search index for the element
      * (this will happen via a background job if this is a web request)
      * @return bool
      * @throws ElementNotFoundException if $element has an invalid $id
      * @throws Exception if the $element doesn’t have any supported sites
      * @throws \Throwable if reasons
      */
-    public function saveElement(ElementInterface $element, bool $runValidation = true, bool $propagate = true, bool $updateSearchIndex = true): bool
+    public function saveElement(ElementInterface $element, bool $runValidation = true, bool $propagate = true, bool $updateSearchIndex = null): bool
     {
         // Force propagation for new elements
         /** @var Element $element */
@@ -542,12 +536,12 @@ class Elements extends Component
      * @param ElementQueryInterface $query The element query to fetch elements with
      * @param bool $continueOnError Whether to continue going if an error occurs
      * @param bool $skipRevisions Whether elements that are (or belong to) a revision should be skipped
-     * @param bool $updateSearchIndex Whether to update the element search index for the element
+     * @param bool|null $updateSearchIndex Whether to update the element search index for the element
      * (this will happen via a background job if this is a web request)
      * @throws \Throwable if reasons
      * @since 3.2.0
      */
-    public function resaveElements(ElementQueryInterface $query, bool $continueOnError = false, $skipRevisions = true, bool $updateSearchIndex = false)
+    public function resaveElements(ElementQueryInterface $query, bool $continueOnError = false, $skipRevisions = true, bool $updateSearchIndex = null)
     {
         // Fire a 'beforeResaveElements' event
         if ($this->hasEventHandlers(self::EVENT_BEFORE_RESAVE_ELEMENTS)) {
@@ -1093,7 +1087,7 @@ class Elements extends Component
 
                 if (!$persistingElementIsInStructureToo) {
                     $db->createCommand()
-                        ->update(Table::RELATIONS,
+                        ->update(Table::STRUCTUREELEMENTS,
                             [
                                 'elementId' => $prevailingElement->id
                             ],
@@ -1896,23 +1890,20 @@ class Elements extends Component
         $this->_propagateElement($element, $isNewElement, $siteInfo, $siteElement);
     }
 
-    // Private Methods
-    // =========================================================================
-
     /**
      * Saves an element.
      *
      * @param ElementInterface $element The element that is being saved
      * @param bool $runValidation Whether the element should be validated
      * @param bool $propagate Whether the element should be saved across all of its supported sites
-     * @param bool $updateSearchIndex Whether to update the element search index for the element
+     * @param bool|null $updateSearchIndex Whether to update the element search index for the element
      * (this will happen via a background job if this is a web request)
      * @return bool
      * @throws ElementNotFoundException if $element has an invalid $id
      * @throws Exception if the $element doesn’t have any supported sites
      * @throws \Throwable if reasons
      */
-    private function _saveElementInternal(ElementInterface $element, bool $runValidation = true, bool $propagate = true, bool $updateSearchIndex = true): bool
+    private function _saveElementInternal(ElementInterface $element, bool $runValidation = true, bool $propagate = true, bool $updateSearchIndex = null): bool
     {
         /** @var Element|DraftBehavior|RevisionBehavior $element */
         $isNewElement = !$element->id;
@@ -1920,13 +1911,17 @@ class Elements extends Component
         /** @var DraftBehavior|null $draftBehavior */
         $draftBehavior = $element->getIsDraft() ? $element->getBehavior('draft') : null;
 
+        $db = Craft::$app->getDb();
+
         // Are we tracking changes?
+        // todo: remove the tableExists condition after the next breakpoint
         $trackChanges = (
             !$isNewElement &&
             $element->duplicateOf === null &&
             $element::trackChanges() &&
             ($draftBehavior->trackChanges ?? true) &&
-            !($draftBehavior->mergingChanges ?? false)
+            !($draftBehavior->mergingChanges ?? false) &&
+            $db->tableExists(Table::CHANGEDATTRIBUTES)
         );
         $dirtyAttributes = [];
 
@@ -1988,7 +1983,13 @@ class Elements extends Component
             return false;
         }
 
+        // Figure out whether we will be updating the search index (and memoize that for nested element saves)
+        $oldUpdateSearchIndex = $this->_updateSearchIndex;
+        $updateSearchIndex = $this->_updateSearchIndex = $updateSearchIndex ?? $this->_updateSearchIndex ?? true;
+
         $transaction = Craft::$app->getDb()->beginTransaction();
+        $e = null;
+
         try {
             // No need to save the element record multiple times
             if (!$element->propagating) {
@@ -2087,8 +2088,9 @@ class Elements extends Component
             $siteSettingsRecord->uri = $element->uri;
 
             // Avoid `enabled` getting marked as dirty if it's not really changing
-            if ($siteSettingsRecord->getIsNewRecord() || $siteSettingsRecord->enabled != $element->enabledForSite) {
-                $siteSettingsRecord->enabled = (bool)$element->enabledForSite;
+            $enabledForSite = $element->getEnabledForSite();
+            if ($siteSettingsRecord->getIsNewRecord() || $siteSettingsRecord->enabled != $enabledForSite) {
+                $siteSettingsRecord->enabled = $enabledForSite;
             }
 
             // Update our list of dirty attributes
@@ -2138,6 +2140,11 @@ class Elements extends Component
             $transaction->commit();
         } catch (\Throwable $e) {
             $transaction->rollBack();
+        }
+
+        $this->_updateSearchIndex = $oldUpdateSearchIndex;
+
+        if ($e !== null) {
             throw $e;
         }
 
@@ -2196,7 +2203,6 @@ class Elements extends Component
 
         // Update the changed attributes & fields
         if ($trackChanges) {
-            $db = Craft::$app->getDb();
             $userId = Craft::$app->getUser()->getId();
             $timestamp = Db::prepareDateForDb(new \DateTime());
             ArrayHelper::append($dirtyAttributes, ...$element->getDirtyAttributes());
@@ -2276,6 +2282,12 @@ class Elements extends Component
         } else {
             $siteElement->enabled = $element->enabled;
             $siteElement->resaving = $element->resaving;
+        }
+
+        // Does the main site's element specify a status for this site?
+        $enabledForSite = $element->getEnabledForSite($siteElement->siteId);
+        if ($enabledForSite !== null) {
+            $siteElement->setEnabledForSite($enabledForSite);
         }
 
         // Copy any non-translatable field values

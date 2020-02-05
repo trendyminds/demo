@@ -23,9 +23,6 @@ use craft\web\View;
  */
 class QueueManagerAsset extends AssetBundle
 {
-    // Public Methods
-    // =========================================================================
-
     /**
      * @inheritdoc
      */
@@ -67,7 +64,7 @@ class QueueManagerAsset extends AssetBundle
                 'Job released.',
                 'Retrying all failed jobs.',
                 'ID',
-                '{num} seconds',
+                '{num, number} {num, plural, =1{second} other{seconds}}',
                 'Time to reserve',
                 'Status',
                 'Progress',

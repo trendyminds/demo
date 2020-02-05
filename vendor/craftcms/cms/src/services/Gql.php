@@ -71,9 +71,6 @@ use yii\caching\TagDependency;
  */
 class Gql extends Component
 {
-    // Constants
-    // =========================================================================
-
     /**
      * @event RegisterGqlTypesEvent The event that is triggered when registering GraphQL types.
      *
@@ -107,9 +104,9 @@ class Gql extends Component
      * use yii\base\Event;
      * use GraphQL\Type\Definition\Type;
      *
-     * Event::on(Gql::class, Gql::EVENT_REGISTER_GQL_TYPES, function(RegisterGqlQueriesEvent $event) {
+     * Event::on(Gql::class, Gql::EVENT_REGISTER_GQL_QUERIES, function(RegisterGqlQueriesEvent $event) {
      *     // Add my GraphQL queries
-     *     $even->queries['queryPluginData'] =
+     *     $event->queries['queryPluginData'] =
      *     [
      *         'type' => Type::listOf(MyType::getType())),
      *         'args' => MyArguments::getArguments(),
@@ -133,8 +130,8 @@ class Gql extends Component
      * use yii\base\Event;
      *
      * Event::on(Gql::class,
-     *     Gql::EVENT_REGISTER_GQL_TYPES,
-     *     function(RegisterGqlModelEvent $event) {
+     *     Gql::EVENT_REGISTER_GQL_DIRECTIVES,
+     *     function(RegisterGqlDirectivesEvent $event) {
      *         $event->directives[] = MyDirective::class;
      *     }
      * );
@@ -243,9 +240,6 @@ class Gql extends Component
      * @see setActiveSchema()
      */
     private $_schema;
-
-    // Public Methods
-    // =========================================================================
 
     /**
      * Returns the GraphQL schema.
@@ -562,6 +556,22 @@ class Gql extends Component
     }
 
     /**
+     * Returns a GraphQL token by its name.
+     *
+     * @param string $tokenName
+     * @return GqlToken|null
+     * @since 3.4.0
+     */
+    public function getTokenByName(string $tokenName)
+    {
+        $result = $this->_createTokenQuery()
+            ->where(['name' => $tokenName])
+            ->one();
+
+        return $result ? new GqlToken($result) : null;
+    }
+
+    /**
      * Returns a GraphQL token by its UID.
      *
      * @param string $uid
@@ -870,9 +880,6 @@ class Gql extends Component
 
         return $scopes;
     }
-
-    // Private Methods
-    // =========================================================================
 
     /**
      * Generate a cache key for the GraphQL operation. Returns null if caching is disabled or unable to generate one.

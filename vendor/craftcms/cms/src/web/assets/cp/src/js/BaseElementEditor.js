@@ -144,6 +144,9 @@ Craft.BaseElementEditor = Garnish.Base.extend(
 
                     this.hud.$hud.data('elementEditor', this);
 
+                    // Disable browser input validation
+                    this.hud.$body.attr('novalidate', '');
+
                     this.hud.on('hide', $.proxy(function() {
                         delete this.hud;
                     }, this));
@@ -204,7 +207,6 @@ Craft.BaseElementEditor = Garnish.Base.extend(
             var $instructions = this.$fieldsContainer.find('> .meta > .field > .heading > .instructions');
 
             for (var i = 0; i < $instructions.length; i++) {
-
                 $instructions.eq(i)
                     .replaceWith($('<span/>', {
                         'class': 'info',

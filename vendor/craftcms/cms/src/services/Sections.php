@@ -48,9 +48,6 @@ use yii\base\Exception;
  */
 class Sections extends Component
 {
-    // Constants
-    // =========================================================================
-
     /**
      * @event SectionEvent The event that is triggered before a section is saved.
      */
@@ -107,9 +104,6 @@ class Sections extends Component
 
     const CONFIG_ENTRYTYPES_KEY = 'entryTypes';
 
-    // Properties
-    // =========================================================================
-
     /**
      * @var bool Whether entries should be resaved after a section or entry type has been updated.
      *
@@ -131,9 +125,6 @@ class Sections extends Component
      * @var
      */
     private $_entryTypesById;
-
-    // Public Methods
-    // =========================================================================
 
     // Sections
     // -------------------------------------------------------------------------
@@ -734,7 +725,7 @@ class Sections extends Component
                     'elementType' => Entry::class,
                     'criteria' => [
                         'sectionId' => $sectionRecord->id,
-                        'siteId' => '*',
+                        'siteId' => array_values($siteIdMap),
                         'unique' => true,
                         'status' => null,
                         'enabledForSite' => false,
@@ -1160,7 +1151,7 @@ class Sections extends Component
         }
 
         $configPath = self::CONFIG_SECTIONS_KEY . '.' . $section->uid . '.' . self::CONFIG_ENTRYTYPES_KEY . '.' . $entryType->uid;
-        $projectConfig->set($configPath, $configData, "Save entry type plugin “{$entryType->handle}”");
+        $projectConfig->set($configPath, $configData, "Save entry type “{$entryType->handle}”");
 
         if ($isNewEntryType) {
             $entryType->id = Db::idByUid(Table::ENTRYTYPES, $entryType->uid);
@@ -1442,9 +1433,6 @@ class Sections extends Component
             ]));
         }
     }
-
-    // Private Methods
-    // =========================================================================
 
     /**
      * Returns a Query object prepped for retrieving sections.

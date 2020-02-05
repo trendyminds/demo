@@ -34,9 +34,6 @@ use yii\db\Schema;
  */
 class Search extends Component
 {
-    // Constants
-    // =========================================================================
-
     /**
      * @event SearchEvent The event that is triggered before a search is performed.
      */
@@ -46,9 +43,6 @@ class Search extends Component
      * @event SearchEvent The event that is triggered after a search is performed.
      */
     const EVENT_AFTER_SEARCH = 'afterSearch';
-
-    // Properties
-    // =========================================================================
 
     /**
      * @var int The minimum word length that keywords must be in order to use a full-text search.
@@ -77,9 +71,6 @@ class Search extends Component
      * truncate search index data for a single row in Postgres.
      */
     public $maxPostgresKeywordLength = 2450;
-
-    // Public Methods
-    // =========================================================================
 
     /**
      * @inheritdoc
@@ -185,7 +176,7 @@ class Search extends Component
      * @param array $fields The field values, indexed by field ID.
      * @return bool Whether the indexing was a success.
      * @throws SiteNotFoundException
-     * @deprecated in 3.4.0. Use [[indexFields()]] instead.
+     * @deprecated in 3.4.0. Use [[indexElementAttributes()]] instead.
      */
     public function indexElementFields(int $elementId, int $siteId, array $fields): bool
     {
@@ -357,9 +348,6 @@ SQL;
         }
         $db->createCommand($sql)->execute();
     }
-
-    // Private Methods
-    // =========================================================================
 
     /**
      * Indexes keywords for a specific element attribute/field.
@@ -644,7 +632,6 @@ SQL;
                 if (!$isMysql && $term->phrase) {
                     $sql = $this->_sqlPhraseExactMatch($keywords, $term->exact);
                 } else {
-
                     // Create fulltext clause from term
                     if ($this->_doFullTextSearch($keywords, $term)) {
                         if ($term->subRight) {
@@ -841,7 +828,15 @@ SQL;
      */
     private function _doFullTextSearch(string $keywords, SearchQueryTerm $term): bool
     {
-        return $keywords !== '' && !$term->subLeft && !$term->exact && !$term->exclude && strlen($keywords) >= $this->minFullTextWordLength;
+        return
+            $keywords !== '' &&
+            !$term->subLeft &&
+            !$term->exact &&
+            !$term->exclude &&
+            strlen($keywords) >= $this->minFullTextWordLength &&
+            // Workaround on MySQL until this gets fixed: https://bugs.mysql.com/bug.php?id=78485
+            // Related issue: https://github.com/craftcms/cms/issues/3862
+            strpos($keywords, ' ') === false;
     }
 
     /**

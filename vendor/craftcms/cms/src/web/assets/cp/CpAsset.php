@@ -40,9 +40,6 @@ use yii\web\JqueryAsset;
  */
 class CpAsset extends AssetBundle
 {
-    // Public Methods
-    // =========================================================================
-
     /**
      * @inheritdoc
      */
@@ -97,14 +94,10 @@ JS;
         $view->registerJs($js, View::POS_HEAD);
     }
 
-    // Private Methods
-    // =========================================================================
-
     private function _registerTranslations(View $view)
     {
         $view->registerTranslations('app', [
             '(blank)',
-            '1 Available Update',
             'A server error occurred.',
             'Actions',
             'All',
@@ -140,6 +133,8 @@ JS;
             'Edit',
             'Element',
             'Elements',
+            'Enabled everywhere',
+            'Enabled for {site}',
             'Enter the name of the folder',
             'Enter your password to continue.',
             'Enter your password to log back in.',
@@ -245,7 +240,7 @@ JS;
             'weeks',
             '{ctrl}C to copy.',
             '{first}-{last} of {total}',
-            '{num} Available Updates',
+            '{num, number} {num, plural, =1{Available Update} other{Available Updates}}',
             '“{name}” deleted.',
         ]);
     }
@@ -333,7 +328,7 @@ JS;
             'dayNames' => $locale->getWeekDayNames(Locale::LENGTH_FULL),
             'dayNamesMin' => $locale->getWeekDayNames(Locale::LENGTH_ABBREVIATED),
             'dayNamesShort' => $locale->getWeekDayNames(Locale::LENGTH_SHORT),
-            'firstDay' => ($currentUser ? $currentUser->getPreference('weekStartDay') : null) ?: $generalConfig->defaultWeekStartDay,
+            'firstDay' => (int)(($currentUser ? $currentUser->getPreference('weekStartDay') : null) ?? $generalConfig->defaultWeekStartDay),
             'monthNames' => $locale->getMonthNames(Locale::LENGTH_FULL),
             'monthNamesShort' => $locale->getMonthNames(Locale::LENGTH_ABBREVIATED),
             'nextText' => Craft::t('app', 'Next'),

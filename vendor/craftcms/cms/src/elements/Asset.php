@@ -70,9 +70,6 @@ use yii\base\UnknownPropertyException;
  */
 class Asset extends Element
 {
-    // Constants
-    // =========================================================================
-
     // Events
     // -------------------------------------------------------------------------
 
@@ -117,9 +114,6 @@ class Asset extends Element
     const KIND_WORD = 'word';
     const KIND_XML = 'xml';
     const KIND_UNKNOWN = 'unknown';
-
-    // Static
-    // =========================================================================
 
     /**
      * @inheritdoc
@@ -507,9 +501,6 @@ class Asset extends Element
         return $source;
     }
 
-    // Properties
-    // =========================================================================
-
     /**
      * @var int|null Volume ID
      */
@@ -644,9 +635,6 @@ class Asset extends Element
      * @var User|null
      */
     private $_uploader;
-
-    // Public Methods
-    // =========================================================================
 
     /**
      * @inheritdoc
@@ -801,13 +789,18 @@ class Asset extends Element
     /**
      * Returns an `<img>` tag based on this asset.
      *
+     * @param mixed $transform The transform to use when generating the html.
      * @return Markup|null
      */
-    public function getImg()
+    public function getImg($transform = null)
     {
         if ($this->kind !== self::KIND_IMAGE) {
             return null;
         }
+
+        if ($transform) {
+            $this->setTransform($transform);
+        };
 
         /** @var Volume $volume */
         $volume = $this->getVolume();
@@ -1004,6 +997,14 @@ class Asset extends Element
             'srcset' => implode(', ', $srcsets),
             'alt' => $this->title,
         ]);
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function getPreviewTargets(): array
+    {
+        return [];
     }
 
     /**
@@ -1654,9 +1655,6 @@ class Asset extends Element
         return $this->keptFile && parent::beforeRestore();
     }
 
-    // Private Methods
-    // =========================================================================
-
     /**
      * @inheritdoc
      */
@@ -1704,9 +1702,6 @@ class Asset extends Element
 
         return $attributes;
     }
-
-    // Private Methods
-    // =========================================================================
 
     /**
      * Returns whether the current user can move/rename the asset.

@@ -21,9 +21,6 @@ use Twig\Markup;
  */
 interface ElementInterface extends ComponentInterface
 {
-    // Static
-    // =========================================================================
-
     /**
      * Returns the lowercase version of [[displayName()]].
      *
@@ -452,9 +449,6 @@ interface ElementInterface extends ComponentInterface
      */
     public static function gqlScopesByContext($context): array;
 
-    // Public Methods
-    // =========================================================================
-
     /**
      * Returns the element’s ID.
      *
@@ -606,7 +600,11 @@ interface ElementInterface extends ComponentInterface
     /**
      * Returns the additional locations that should be available for previewing the element, besides its primary [[getUrl()|URL]].
      *
-     * Each target should be represented by a sub-array with `'label'` and `'url'` keys.
+     * Each target should be represented by a sub-array with the following keys:
+     *
+     * - `label` – What the preview target will be called in the control panel.
+     * - `url` – The URL that the preview target should open.
+     * - `refresh` – Whether preview frames should be automatically refreshed when content changes (`true` by default).
      *
      * ::: tip
      * Element types that extend [[\craft\base\Element]] should override [[\craft\base\Element::previewTargets()]]
@@ -625,6 +623,28 @@ interface ElementInterface extends ComponentInterface
      * @return string|null
      */
     public function getThumbUrl(int $size);
+
+    /**
+     * Returns whether the element is enabled for the current site.
+     *
+     * This can also be set to an array of site ID/site-enabled mappings.
+     *
+     * @param int|null $siteId The ID of the site to return for. If `null`, the current site status will be returned.
+     * @return bool|null Whether the element is enabled for the given site. `null` will be returned if a `$siteId` was
+     * passed, but that site’s status wasn’t provided via [[setEnabledForSite()]].
+     * @since 3.4.0
+     */
+    public function getEnabledForSite(int $siteId = null);
+
+    /**
+     * Sets whether the element is enabled for the current site.
+     *
+     * This can also be set to an array of site ID/site-enabled mappings.
+     *
+     * @param bool|bool[] $enabledForSite
+     * @since 3.4.0
+     */
+    public function setEnabledForSite($enabledForSite);
 
     /**
      * Returns the element’s status.

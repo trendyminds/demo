@@ -26,9 +26,6 @@ use craft\validators\UniqueValidator;
  */
 class CategoryGroup extends Model
 {
-    // Properties
-    // =========================================================================
-
     /**
      * @var int|null ID
      */
@@ -69,20 +66,17 @@ class CategoryGroup extends Model
      */
     private $_siteSettings;
 
-    // Public Methods
-    // =========================================================================
-
     /**
      * @inheritdoc
      */
     public function behaviors()
     {
-        return [
-            'fieldLayout' => [
-                'class' => FieldLayoutBehavior::class,
-                'elementType' => Category::class
-            ],
+        $behaviors = parent::behaviors();
+        $behaviors['fieldLayout'] = [
+            'class' => FieldLayoutBehavior::class,
+            'elementType' => Category::class,
         ];
+        return $behaviors;
     }
 
     /**

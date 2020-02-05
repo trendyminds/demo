@@ -1,5 +1,5 @@
 <template>
-    <div class="vue-admin-table" :class="{ 'vue-admin-table-padded': padded }">
+    <div :id="tableId" class="vue-admin-table" :class="{ 'vue-admin-table-padded': padded }">
         <div v-show="showToolbar" class="toolbar">
             <div class="flex">
 
@@ -21,7 +21,7 @@
                         class="text fullwidth"
                         type="text"
                         autocomplete="off"
-                        :placeholder="searchPlaceholder"
+                        :placeholder="searchPlaceholderText"
                         v-model="searchTerm"
                         @input="handleSearch"
                     >
@@ -32,7 +32,7 @@
         </div>
 
         <div :class="{ 'content-pane': fullPage }">
-            <div v-if="this.isEmpty">
+            <div v-if="this.isEmpty" class="zilch">
                 <p>{{ emptyMessage }}</p>
             </div>
 
@@ -97,6 +97,7 @@
                                 :name="props.rowData.title"
                                 :success-message="deleteSuccessMessage"
                                 :confirmation-message="deleteConfirmationMessage"
+                                :fail-message="deleteFailMessage"
                                 :action-url="deleteAction"
                                 :disabled="!canDelete"
                                 v-on:reload="remove(props.rowIndex)"
@@ -136,6 +137,9 @@
         },
 
         props: {
+            container: {
+                type: String,
+            },
             actions: {
                 type: Array,
                 default: () => { return [] },
@@ -156,6 +160,9 @@
                 type: Function,
             },
             deleteConfirmationMessage: {
+                type: String,
+            },
+            deleteFailMessage: {
                 type: String,
             },
             deleteSuccessMessage: {
@@ -222,9 +229,10 @@
                 checks: [],
                 currentPage: 1,
                 detailRow: AdminTableDetailRow,
+                dragging: false,
                 isEmpty: false,
                 isLoading: true,
-                searchClearTitle: Craft.t('app', 'Clear'),
+                searchClearTitle: Craft.escapeHtml(Craft.t('app', 'Clear')),
                 searchTerm: null,
                 selectAll: null,
                 sortable: null,
@@ -239,8 +247,12 @@
 
                 if (this.canReorder) {
                     this.sortable = Sortable.create(tableBody, {
+                        animation: 150,
                         handle: '.move.icon',
-                        onSort: this.handleReorder
+                        ghostClass: 'vue-admin-table-drag',
+                        onSort: this.handleReorder,
+                        onStart: this.startReorder,
+                        onEnd: this.endReorder,
                     })
                 }
                 this.isEmpty = (this.$refs.vuetable.tableData.length) ? false : true;
@@ -261,6 +273,14 @@
               this.isLoading = true;
             },
 
+            startReorder() {
+                this.dragging = true;
+            },
+
+            endReorder() {
+                this.dragging = false;
+            },
+
             handleReorder(ev) {
                 let elements = [...ev.target.querySelectorAll('.vue-table-move-handle')];
 
@@ -276,11 +296,11 @@
 
                     Craft.postActionRequest(this.reorderAction, data, response => {
                         if (response && response.success) {
-                            Craft.cp.displayNotice(this.reorderSuccessMessage);
+                            Craft.cp.displayNotice(Craft.escapeHtml(this.reorderSuccessMessage));
                         }
                     });
                 } else {
-                    Craft.cp.displayError(this.reorderFailMessage);
+                    Craft.cp.displayError(Craft.escapeHtml(this.reorderFailMessage));
                 }
             },
 
@@ -358,10 +378,18 @@
                 this.$refs.vuetable.changePage(page)
                 this.deselectAll();
             },
-
         },
 
         computed: {
+            tableId() {
+                // Replace either `#` or `.` from the container selector
+                if (this.container) {
+                    return this.container.replace(/[#.]/g,'');
+                }
+
+                return '';
+            },
+
             apiUrl() {
                 if (!this.tableDataEndpoint) {
                     return '';
@@ -405,8 +433,10 @@
                     // Do not allow sorting for if you can manually reorder items
                     if (this.reorderAction && item.hasOwnProperty('sortField')) {
                         delete item.sortField;
-                        return item;
                     }
+
+                    // Escape Title
+                    item.title = Craft.escapeHtml(item.title);
 
                     return item;
                 });
@@ -431,6 +461,10 @@
                 return columns;
             },
 
+            searchPlaceholderText() {
+              return Craft.escapeHtml(this.searchPlaceholder);
+            },
+
             showCheckboxes() {
               return (this.actions.length && this.checkboxes);
             },
@@ -440,13 +474,18 @@
             },
 
             tableCss() {
+                var tableClass = this.tableClass;
+                if (this.dragging) {
+                    tableClass = tableClass + ' vue-admin-table-dragging';
+                }
+
                 return {
                     ascendingClass: 'ordered asc',
                     descendingClass: 'ordered desc',
                     sortableIcon: 'orderable',
                     handleIcon: 'move icon',
                     loadingClass: 'loading',
-                    tableClass: this.tableClass,
+                    tableClass: tableClass,
                 }
             }
         },
@@ -465,7 +504,6 @@
                     } else {
                         checkbox.classList.remove('checked');
                         checkbox.classList.remove('indeterminate');
-
                     }
                 }
             }
@@ -505,7 +543,17 @@
         margin: 0;
     }
 
+    .vue-admin-table-drag {
+        background: #f3f7fc;
+    }
+
     table thead th.sortable:hover {
         background-color: #f9f9f9;
     }
+
+
+    table.data.vue-admin-table-dragging tbody tr:not(.disabled):hover td {
+        background-color: transparent;
+    }
+
 </style>

@@ -24,9 +24,6 @@ use yii\db\Exception;
  */
 class ResaveElements extends BaseJob
 {
-    // Properties
-    // =========================================================================
-
     /**
      * @var string|ElementInterface|null The element type that should be resaved
      */
@@ -37,8 +34,11 @@ class ResaveElements extends BaseJob
      */
     public $criteria;
 
-    // Public Methods
-    // =========================================================================
+    /**
+     * @var bool Whether to update the search indexes for the resaved elements.
+     * @since 3.4.2
+     */
+    public $updateSearchIndex = false;
 
     /**
      * @inheritdoc
@@ -63,12 +63,9 @@ class ResaveElements extends BaseJob
         };
 
         $elementsService->on(Elements::EVENT_BEFORE_RESAVE_ELEMENT, $callback);
-        $elementsService->resaveElements($query);
+        $elementsService->resaveElements($query, false, true, $this->updateSearchIndex);
         $elementsService->off(Elements::EVENT_BEFORE_RESAVE_ELEMENT, $callback);
     }
-
-    // Protected Methods
-    // =========================================================================
 
     /**
      * @inheritdoc
@@ -83,9 +80,6 @@ class ResaveElements extends BaseJob
             'type' => $elementType::pluralLowerDisplayName(),
         ]);
     }
-
-    // Private Methods
-    // =========================================================================
 
     /**
      * Returns the element query based on the criteria.

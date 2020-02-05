@@ -29,17 +29,17 @@ body.rtl .widget.loading > .front > .pane > .spinner.body-loading { margin-right
 
 .widget.loading-new.new > .front > .pane > .spinner.body-loading { display: block; position: absolute; top: calc(50% - 15px); left: calc(50% - 12px); }
 
-.widget > .front > .pane > .icon.settings { display: block; opacity: 0; cursor: pointer; -webkit-transition: opacity linear 200ms; transition: opacity linear 200ms; }
-body.ltr .widget > .front > .pane > .icon.settings { float: right; }
-body.rtl .widget > .front > .pane > .icon.settings { float: left; }
-body.ltr .widget > .front > .pane > .icon.settings { margin-left: 7px; }
-body.rtl .widget > .front > .pane > .icon.settings { margin-right: 7px; }
+.widget > .front > .pane > .icon.settings { display: block; opacity: 0; cursor: pointer; top: 24px; -webkit-transition: opacity linear 200ms; transition: opacity linear 200ms; position: absolute; }
+body.ltr .widget > .front > .pane > .icon.settings { right: 24px; }
+body.rtl .widget > .front > .pane > .icon.settings { left: 24px; }
 
 .widget:not(.flipped):hover > .front > .pane > .icon.settings { opacity: 0.3; }
 
 .widget:not(.flipped) > .front > .pane > .icon.settings:hover { opacity: 1; }
 
-.widget h2 { margin-top: 0; }
+.widget .widget-heading { margin-bottom: 15px; }
+.widget .widget-heading h2 { margin-bottom: 3px; }
+.widget .widget-heading h5 { margin-top: 0; }
 
 .widget form + .errors { margin-top: 15px; }
 
@@ -63,7 +63,7 @@ body.ltr .newwidgetmenu ul li a .icon { left: 14px; }
 body.rtl .newwidgetmenu ul li a .icon { right: 14px; }
 
 .newwidgetmenu ul li a .icon svg, .widgetmanagerhud-icon svg { width: 16px; height: 16px; }
-.newwidgetmenu ul li a .icon svg rect, .newwidgetmenu ul li a .icon svg circle, .newwidgetmenu ul li a .icon svg ellipse, .newwidgetmenu ul li a .icon svg line, .newwidgetmenu ul li a .icon svg polyline, .newwidgetmenu ul li a .icon svg polygon, .newwidgetmenu ul li a .icon svg path, .newwidgetmenu ul li a .icon svg text, .widgetmanagerhud-icon svg rect, .widgetmanagerhud-icon svg circle, .widgetmanagerhud-icon svg ellipse, .widgetmanagerhud-icon svg line, .widgetmanagerhud-icon svg polyline, .widgetmanagerhud-icon svg polygon, .widgetmanagerhud-icon svg path, .widgetmanagerhud-icon svg text { fill: #7b8793; stroke-width: 0; }
+.newwidgetmenu ul li a .icon svg rect, .newwidgetmenu ul li a .icon svg circle, .newwidgetmenu ul li a .icon svg ellipse, .newwidgetmenu ul li a .icon svg line, .newwidgetmenu ul li a .icon svg polyline, .newwidgetmenu ul li a .icon svg polygon, .newwidgetmenu ul li a .icon svg path, .newwidgetmenu ul li a .icon svg text, .widgetmanagerhud-icon svg rect, .widgetmanagerhud-icon svg circle, .widgetmanagerhud-icon svg ellipse, .widgetmanagerhud-icon svg line, .widgetmanagerhud-icon svg polyline, .widgetmanagerhud-icon svg polygon, .widgetmanagerhud-icon svg path, .widgetmanagerhud-icon svg text { fill: #7b8793; stroke-width: 0; -webkit-transition: fill linear 100ms; transition: fill linear 100ms; }
 
 /* New Widget Menu */
 .widgetmanagerhud { max-width: 400px; }

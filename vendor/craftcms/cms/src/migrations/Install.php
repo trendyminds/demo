@@ -36,9 +36,6 @@ use yii\base\InvalidConfigException;
  */
 class Install extends Migration
 {
-    // Properties
-    // =========================================================================
-
     /**
      * @var string|null The admin user’s username
      */
@@ -58,9 +55,6 @@ class Install extends Migration
      * @var Site|null The default site
      */
     public $site;
-
-    // Public Methods
-    // =========================================================================
 
     /**
      * @inheritdoc
@@ -471,6 +465,7 @@ class Install extends Migration
         ]);
         $this->createTable(Table::QUEUE, [
             'id' => $this->primaryKey(),
+            'channel' => $this->string()->notNull()->defaultValue('queue'),
             'job' => $this->binary()->notNull(),
             'description' => $this->text(),
             'timePushed' => $this->integer()->notNull(),
@@ -819,8 +814,8 @@ class Install extends Migration
         $this->createIndex(null, Table::MIGRATIONS, ['pluginId'], false);
         $this->createIndex(null, Table::MIGRATIONS, ['type', 'pluginId'], false);
         $this->createIndex(null, Table::PLUGINS, ['handle'], true);
-        $this->createIndex(null, Table::QUEUE, ['fail', 'timeUpdated', 'timePushed']);
-        $this->createIndex(null, Table::QUEUE, ['fail', 'timeUpdated', 'delay']);
+        $this->createIndex(null, Table::QUEUE, ['channel', 'fail', 'timeUpdated', 'timePushed']);
+        $this->createIndex(null, Table::QUEUE, ['channel', 'fail', 'timeUpdated', 'delay']);
         $this->createIndex(null, Table::RELATIONS, ['fieldId', 'sourceId', 'sourceSiteId', 'targetId'], true);
         $this->createIndex(null, Table::RELATIONS, ['sourceId'], false);
         $this->createIndex(null, Table::RELATIONS, ['targetId'], false);
@@ -1125,9 +1120,6 @@ class Install extends Migration
             Craft::$app->getUser()->login($user, $generalConfig->userSessionDuration);
         }
     }
-
-    // Private Methods
-    // =========================================================================
 
     /**
      * Attempts to install any plugins listed in project.yaml.
