@@ -265,9 +265,9 @@ class ComposerStaticInit99eb61e0cbfcb7ebccbd1f705e2e1e28
         ),
         'voku\\' => 
         array (
-            0 => __DIR__ . '/..' . '/voku/stop-words/src/voku',
-            1 => __DIR__ . '/..' . '/voku/portable-ascii/src/voku',
-            2 => __DIR__ . '/..' . '/voku/portable-utf8/src/voku',
+            0 => __DIR__ . '/..' . '/voku/portable-ascii/src/voku',
+            1 => __DIR__ . '/..' . '/voku/portable-utf8/src/voku',
+            2 => __DIR__ . '/..' . '/voku/stop-words/src/voku',
         ),
         'tubalmartin\\CssMin\\' => 
         array (
