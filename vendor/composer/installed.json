@@ -325,17 +325,17 @@
     },
     {
         "name": "craftcms/cms",
-        "version": "3.4.4.1",
-        "version_normalized": "3.4.4.1",
+        "version": "3.4.5",
+        "version_normalized": "3.4.5.0",
         "source": {
             "type": "git",
             "url": "https://github.com/craftcms/cms.git",
-            "reference": "f595178873bf02ace57d8bd9d056af5f486d0912"
+            "reference": "6ebc29ebbf3ee0b79527aef965b552212127f3c1"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/craftcms/cms/zipball/f595178873bf02ace57d8bd9d056af5f486d0912",
-            "reference": "f595178873bf02ace57d8bd9d056af5f486d0912",
+            "url": "https://api.github.com/repos/craftcms/cms/zipball/6ebc29ebbf3ee0b79527aef965b552212127f3c1",
+            "reference": "6ebc29ebbf3ee0b79527aef965b552212127f3c1",
             "shasum": ""
         },
         "require": {
@@ -401,7 +401,7 @@
             "ext-imagick": "Adds support for more image processing formats and options.",
             "ext-intl": "Adds rich internationalization support."
         },
-        "time": "2020-02-06T14:47:41+00:00",
+        "time": "2020-02-07T20:26:40+00:00",
         "type": "library",
         "installation-source": "dist",
         "autoload": {
@@ -4225,17 +4225,17 @@
     },
     {
         "name": "voku/portable-ascii",
-        "version": "1.4.7",
-        "version_normalized": "1.4.7.0",
+        "version": "1.4.8",
+        "version_normalized": "1.4.8.0",
         "source": {
             "type": "git",
             "url": "https://github.com/voku/portable-ascii.git",
-            "reference": "a691852adbf7518370332fd7921292d8dad34e7e"
+            "reference": "a3801f5facf187a28cc2cae7b98a540c36406dc4"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/voku/portable-ascii/zipball/a691852adbf7518370332fd7921292d8dad34e7e",
-            "reference": "a691852adbf7518370332fd7921292d8dad34e7e",
+            "url": "https://api.github.com/repos/voku/portable-ascii/zipball/a3801f5facf187a28cc2cae7b98a540c36406dc4",
+            "reference": "a3801f5facf187a28cc2cae7b98a540c36406dc4",
             "shasum": ""
         },
         "require": {
@@ -4247,7 +4247,7 @@
         "suggest": {
             "ext-intl": "Use Intl for transliterator_transliterate() support"
         },
-        "time": "2020-01-27T08:58:33+00:00",
+        "time": "2020-02-06T21:46:48+00:00",
         "type": "library",
         "installation-source": "dist",
         "autoload": {
