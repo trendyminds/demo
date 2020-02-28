@@ -42,7 +42,7 @@ class EntriesController extends BaseEntriesController
     const EVENT_PREVIEW_ENTRY = 'previewEntry';
 
     /**
-     * Called when a user beings up an entry for editing before being displayed.
+     * Called when a user brings up an entry for editing before being displayed.
      *
      * @param string $section The section’s handle
      * @param int|null $entryId The entry’s ID, if editing an existing entry.
@@ -316,10 +316,17 @@ class EntriesController extends BaseEntriesController
             $this->requirePermission('publishPeerEntries:' . $entry->getSection()->uid);
         }
 
+        // Keep track of whether the entry was disabled as a result of duplication
+        $forceDisabled = false;
+
         // If we're duplicating the entry, swap $entry with the duplicate
         if ($duplicate) {
             try {
+                $wasEnabled = $entry->enabled;
                 $entry = Craft::$app->getElements()->duplicateElement($entry);
+                if ($wasEnabled && !$entry->enabled) {
+                    $forceDisabled = true;
+                }
             } catch (InvalidElementException $e) {
                 /** @var Entry $clone */
                 $clone = $e->element;
@@ -347,6 +354,10 @@ class EntriesController extends BaseEntriesController
 
         // Populate the entry with post data
         $this->_populateEntryModel($entry);
+
+        if ($forceDisabled) {
+            $entry->enabled = false;
+        }
 
         // Even more permission enforcement
         if ($entry->enabled) {
