@@ -20,9 +20,9 @@
   },
   "require": {
     "php": ">=7.0.0",
-    "craftcms/cms": "^3.4.5",
+    "craftcms/cms": "3.6.6",
     "vlucas/phpdotenv": "^2.4.0",
-    "craftcms/redactor": "^2.5.0"
+    "craftcms/redactor": "2.8.5"
   },
   "autoload": {
     "psr-4": {
@@ -32,7 +32,7 @@
   "config": {
     "optimize-autoloader": true,
     "platform": {
-      "php": "7.0"
+      "php": "7.3"
     }
   },
   "scripts": {

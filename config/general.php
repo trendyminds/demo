@@ -31,6 +31,8 @@ return [
             '@assetBasePath' => getenv('ASSET_BASE_PATH'),
             '@assetBaseUrl' => getenv('ASSET_BASE_URL'),
         ],
+
+        'enableGql' => false
     ],
 
     // Dev environment settings

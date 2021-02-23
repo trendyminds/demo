@@ -17,5 +17,13 @@ return [
     'modules' => [
         'my-module' => \modules\Module::class,
     ],
+    'components' => [
+        'projectConfig' => function() {
+            $config = craft\helpers\App::projectConfigConfig();
+            $config['writeYamlAutomatically'] = false;
+
+            return Craft::createObject($config);
+        },
+    ],
     //'bootstrap' => ['my-module'],
 ];
